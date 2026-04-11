@@ -707,6 +707,27 @@
                 <h1>🚀 sftlogapi v2 - 高性能日志查询系统</h1>
                 <p>专为分布式交易链路追踪设计，查询耗时从 23 秒降至 ≤3 毫秒，性能提升 <strong>7,600 倍</strong></p>
                 
+                <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; margin-top: 25px; border: 1px solid rgba(255,255,255,0.2);">
+                    <h3 style="margin: 0 0 15px 0; font-size: 1.3em;">🤖 AI 接口已开放</h3>
+                    <p style="margin: 0 0 15px 0; opacity: 0.95; line-height: 1.6;">
+                        智多星 AI 可通过 API Key 认证调用本系统，支持自然语言查询、交易链路追踪、智能分析等功能。
+                    </p>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 200px;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">🔐 认证方式</div>
+                            <div style="font-size: 0.9em; opacity: 0.9;">API Key (Bearer Token)</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 200px;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">📡 接口地址</div>
+                            <div style="font-size: 0.9em; opacity: 0.9;">/api/zdx/*</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 8px; flex: 1; min-width: 200px;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">📚 文档</div>
+                            <div style="font-size: 0.9em; opacity: 0.9;">docs/ZHIDUOXING_API.md</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="hero-stats">
                     <div class="stat-card">
                         <div class="value">≤3ms</div>
@@ -727,6 +748,91 @@
                 </div>
             </div>
             
+            <!-- AI 接口功能 -->
+            <div class="architecture" style="margin-bottom: 40px;">
+                <h2>🤖 AI 接口功能</h2>
+                
+                <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 30px; border-radius: 15px; margin-bottom: 25px;">
+                    <h3 style="color: #333; margin-bottom: 15px;">为智多星 AI 提供完整接口能力</h3>
+                    <p style="color: #555; line-height: 1.8; margin-bottom: 20px;">
+                        系统提供专门的 AI 接口（<code style="background: white; padding: 3px 10px; border-radius: 5px;">/api/zdx/*</code>），支持 API Key 认证，智多星可以通过自然语言调用本系统的日志查询、链路追踪、智能分析等功能。
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                        <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
+                            <h4 style="margin: 0 0 10px 0; color: #667eea;">🔐 API Key 认证</h4>
+                            <p style="margin: 0; color: #666; font-size: 0.95em; line-height: 1.6;">
+                                支持 Bearer Token 认证方式，确保接口调用安全。可自定义 API Key，支持 IP 白名单。
+                            </p>
+                            <div style="margin-top: 10px; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85em; color: #333;">
+                                Authorization: Bearer zhiduoxing-2026-secret-key
+                            </div>
+                        </div>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #11998e;">
+                            <h4 style="margin: 0 0 10px 0; color: #11998e;">📡 专用接口</h4>
+                            <p style="margin: 0; color: #666; font-size: 0.95em; line-height: 1.6;">
+                                三个智多星专用接口，返回完整日志数据，支持结构化分析和智能建议生成。
+                            </p>
+                            <div style="margin-top: 10px;">
+                                <div style="font-size: 0.85em; color: #333; margin-bottom: 5px;">• GET /api/zdx/log-query</div>
+                                <div style="font-size: 0.85em; color: #333; margin-bottom: 5px;">• GET /api/zdx/transaction-trace</div>
+                                <div style="font-size: 0.85em; color: #333;">• POST /api/zdx/transaction-analyze</div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #eb3349;">
+                            <h4 style="margin: 0 0 10px 0; color: #eb3349;">🧠 自然语言理解</h4>
+                            <p style="margin: 0; color: #666; font-size: 0.95em; line-height: 1.6;">
+                                智多星客户端支持自然语言解析，自动提取 REQ_SN、时间等参数，默认服务名为 sft-aipg。
+                            </p>
+                            <div style="margin-top: 10px; background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.85em; color: #555;">
+                                "帮我查一下交易 XXX，时间是 2026040809"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 使用示例 -->
+                <div style="background: white; padding: 25px; border-radius: 12px; margin-top: 25px;">
+                    <h3 style="color: #333; margin-bottom: 20px;">💡 智多星调用示例</h3>
+                    
+                    <div style="background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9em; overflow-x: auto;">
+                        <div style="color: #75715e; margin-bottom: 10px;"># Python 调用示例</div>
+                        <div><span style="color: #66d9ef">import</span> requests</div>
+                        <div style="margin-top: 10px;">
+                            <span style="color: #f8f8f2">API_KEY = </span><span style="color: #e6db74">"zhiduoxing-2026-secret-key"</span>
+                        </div>
+                        <div>
+                            <span style="color: #f8f8f2">headers = {</span><span style="color: #e6db74">"Authorization"</span><span style="color: #f8f8f2">: </span><span style="color: #e6db74">f"Bearer {API_KEY}"</span><span style="color: #f8f8f2">}</span>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <span style="color: #75715e"># 查询日志</span>
+                        </div>
+                        <div>
+                            <span style="color: #f8f8f2">response = requests.get(</span>
+                        </div>
+                        <div style="padding-left: 20px;">
+                            <span style="color: #e6db74">"http://172.16.2.164:8091/sftlogapi/api/zdx/log-query"</span><span style="color: #f8f8f2">,</span>
+                        </div>
+                        <div style="padding-left: 20px;">
+                            <span style="color: #f8f8f2">headers=headers,</span>
+                        </div>
+                        <div style="padding-left: 20px;">
+                            <span style="color: #f8f8f2">params={</span><span style="color: #e6db74">"req_sn"</span><span style="color: #f8f8f2">: </span><span style="color: #e6db74">"LX260408090024C80C82F3"</span><span style="color: #f8f8f2">, </span><span style="color: #e6db74">"log_time"</span><span style="color: #f8f8f2">: </span><span style="color: #e6db74">"2026040809"</span><span style="color: #f8f8f2">}</span>
+                        </div>
+                        <div><span style="color: #f8f8f2">)</span></div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #e6fffb; border-radius: 8px; border-left: 4px solid #11998e;">
+                        <strong style="color: #006d75;">📚 详细文档：</strong>
+                        <span style="color: #006d75;">查看 </span>
+                        <code style="background: white; padding: 3px 10px; border-radius: 5px; color: #006d75;">docs/ZHIDUOXING_API.md</code>
+                        <span style="color: #006d75;"> 获取完整接口说明和智多星客户端代码</span>
+                    </div>
+                </div>
+            </div>
+            
             <!-- 项目简介 -->
             <div class="architecture" style="margin-bottom: 40px;">
                 <h2>📋 项目简介</h2>
@@ -734,6 +840,7 @@
                     sftlogapi v2 是一个企业级高性能日志查询系统，通过 <strong>SQLite 持久化索引 + 流式日志读取</strong>技术，
                     实现毫秒级日志查询和完整的交易链路追踪。系统支持 30+ 微服务、7 天日志保留，日均处理 500 万 + 索引记录，
                     是分布式系统问题排查和交易追踪的利器。
+                    <strong style="color: #667eea;">现已开放 AI 接口，智多星可通过 API Key 认证调用。</strong>
                 </p>
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
@@ -803,6 +910,25 @@
             <!-- 系统架构 -->
             <div class="architecture">
                 <h2>🏗️ 系统架构</h2>
+                
+                <!-- AI 接口层 -->
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 1.3em;">🤖 AI 接口层（新增）</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">/api/zdx/log-query</div>
+                            <div style="font-size: 0.9em; opacity: 0.9;">单日志查询（完整日志）</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">/api/zdx/transaction-trace</div>
+                            <div style="font-size: 0.9em; opacity: 0.9;">交易链路追踪（完整日志）</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">/api/zdx/transaction-analyze</div>
+                            <div style="font-size: 0.9em; opacity: 0.9;">AI 智能分析（结构化 + 日志）</div>
+                        </div>
+                    </div>
+                </div>
                 
                 <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 30px; border-radius: 12px; margin-bottom: 25px;">
                     <p style="color: #555; line-height: 1.8; font-size: 1.05em;">
