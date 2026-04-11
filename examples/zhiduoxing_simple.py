@@ -31,39 +31,49 @@ class ZhiduoxingLogClient:
             "req_sn": None,
             "log_time": None,
             "transaction_type": None,
-            "service": None,
+            "service": "sft-aipg",  # 默认服务名
         }
         
-        # 1. 提取时间（优先，避免 REQ_SN 干扰）
-        # 匹配"时间是 XXXX"
-        time_match = re.search(r'时间是 (\d+)', user_input)
+        # 1. 提取时间 - 查找"时间"后面的 10 位阿拉伯数字
+        # 匹配模式："时间...XXXXXX"（时间后面跟 10 位数字）
+        time_match = re.search(r'时间.*?(\d{10})', user_input)
         if time_match:
             time_str = time_match.group(1)
-            if len(time_str) == 10:
+            if time_str.isdigit():
                 result["log_time"] = time_str
-            elif len(time_str) == 8:
-                result["log_time"] = time_str + "09"
         
-        # 2. 提取 REQ_SN
-        req_sn_match = re.search(r'交易 [：:\s]*([A-Za-z0-9\-]+)', user_input, re.IGNORECASE)
-        if req_sn_match:
-            result["req_sn"] = req_sn_match.group(1)
+        # 2. 提取 REQ_SN - 查找交易序列号
+        req_sn_patterns = [
+            r'req_sn[=：:\s]+([A-Za-z0-9\-]+)',  # req_sn=XXX
+            r'交易 [：:\s]*([A-Za-z0-9\-]{15,})',  # 交易 XXX（长字符串）
+            r'([A-Za-z0-9\-]{20,})',  # 20 位以上的字母数字组合
+        ]
         
-        # 3. 提取服务名
+        for pattern in req_sn_patterns:
+            req_sn_match = re.search(pattern, user_input, re.IGNORECASE)
+            if req_sn_match:
+                req_sn = req_sn_match.group(1)
+                # 排除纯数字（避免匹配到时间）
+                if not req_sn.isdigit():
+                    result["req_sn"] = req_sn
+                    break
+        
+        # 3. 提取服务名（可选，用户一般不说）
         service_match = re.search(r'(sft-[a-z]+)', user_input, re.IGNORECASE)
         if service_match:
             result["service"] = service_match.group(1)
         
         # 4. 判断意图
         if result["req_sn"] and result["log_time"]:
-            if "链路" in user_input or "追踪" in user_input:
+            if "链路" in user_input or "追踪" in user_input or "所有应用" in user_input:
                 result["intent"] = "trace"
-            elif "分析" in user_input or "为什么" in user_input:
+            elif "分析" in user_input or "为什么" in user_input or "状态" in user_input:
                 result["intent"] = "analyze"
             else:
                 result["intent"] = "query"
         elif result["req_sn"]:
             result["intent"] = "query"
+            # 没有提供时间，使用当前小时
             result["log_time"] = datetime.now().strftime('%Y%m%d%H')
         
         return result
