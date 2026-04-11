@@ -31,6 +31,15 @@ data/logs/
 config/*.json
 !config/*.example.json
 
+# 环境变量文件
+config.env
+*.env
+.env
+
+# 部署脚本
+deploy.sh
+!deploy.sh.example
+
 # 日志文件
 *.log
 logs/
