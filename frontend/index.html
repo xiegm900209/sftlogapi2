@@ -695,6 +695,7 @@
                 <a href="javascript:void(0)" class="nav-item" onclick="showSection('trace', this)">🔗 交易链路追踪</a>
                 <a href="javascript:void(0)" class="nav-item" onclick="showSection('log-config', this)">📁 日志路径配置</a>
                 <a href="javascript:void(0)" class="nav-item" onclick="showSection('type-config', this)">⚙️ 交易类型配置</a>
+                <a href="javascript:void(0)" class="nav-item" onclick="showSection('docs', this)">📚 文档</a>
             </div>
         </div>
     </nav>
@@ -1327,6 +1328,216 @@
             </div>
         </div>
     </div>
+    
+    <!-- 文档页面 -->
+    <section id="docs" class="page-section hidden">
+        <h2>📚 文档中心</h2>
+        
+        <!-- 智多星接口文档 -->
+        <div class="architecture" style="margin-bottom: 40px;">
+            <h3>🤖 智多星 AI 接口文档</h3>
+            
+            <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <p style="color: #555; line-height: 1.8; margin-bottom: 20px;">
+                    智多星 AI 可通过 API Key 认证调用本系统的日志查询接口，支持自然语言理解、交易链路追踪、智能分析等功能。
+                </p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
+                        <h4 style="margin: 0 0 10px 0; color: #667eea;">🔐 认证方式</h4>
+                        <p style="margin: 0; color: #666; font-size: 0.95em;">API Key (Bearer Token)</p>
+                        <div style="margin-top: 10px; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85em;">
+                            Authorization: Bearer zhiduoxing-2026-secret-key
+                        </div>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #11998e;">
+                        <h4 style="margin: 0 0 10px 0; color: #11998e;">📡 接口地址</h4>
+                        <p style="margin: 0; color: #666; font-size: 0.95em;">http://172.16.2.164:8091/sftlogapi/api/zdx/*</p>
+                        <div style="margin-top: 10px; font-size: 0.85em; color: #333;">
+                            <div>• GET /api/zdx/log-query</div>
+                            <div>• GET /api/zdx/transaction-trace</div>
+                            <div>• POST /api/zdx/transaction-analyze</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #eb3349;">
+                        <h4 style="margin: 0 0 10px 0; color: #eb3349;">📚 详细文档</h4>
+                        <p style="margin: 0; color: #666; font-size: 0.95em;">GitHub 仓库文档</p>
+                        <div style="margin-top: 10px;">
+                            <a href="https://github.com/xiegm900209/sftlogapi2/blob/main/docs/ZHIDUOXING_API.md" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 500;">
+                                docs/ZHIDUOXING_API.md →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Python 调用示例 -->
+            <div style="background: white; padding: 25px; border-radius: 12px;">
+                <h4 style="margin: 0 0 20px 0; color: #333;">💡 Python 调用示例</h4>
+                
+                <div style="background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9em; overflow-x: auto;">
+                    <div style="color: #75715e; margin-bottom: 10px;"># 智多星客户端调用示例</div>
+                    <div><span style="color: #66d9ef">import</span> requests</div>
+                    <div style="margin-top: 10px;">
+                        <span style="color: #f8f8f2">API_KEY = </span><span style="color: #e6db74">"zhiduoxing-2026-secret-key"</span>
+                    </div>
+                    <div>
+                        <span style="color: #f8f8f2">headers = {</span><span style="color: #e6db74">"Authorization"</span><span style="color: #f8f8f2">: </span><span style="color: #e6db74">f"Bearer {API_KEY}"</span><span style="color: #f8f8f2">}</span>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <span style="color: #f8f8f2">response = requests.get(</span>
+                    </div>
+                    <div style="padding-left: 20px;">
+                        <span style="color: #e6db74">"http://172.16.2.164:8091/sftlogapi/api/zdx/log-query"</span><span style="color: #f8f8f2">,</span>
+                    </div>
+                    <div style="padding-left: 20px;">
+                        <span style="color: #f8f8f2">headers=headers,</span>
+                    </div>
+                    <div style="padding-left: 20px;">
+                        <span style="color: #f8f8f2">params={</span><span style="color: #e6db74">"req_sn"</span><span style="color: #f8f8f2">: </span><span style="color: #e6db74">"LX260408090024C80C82F3"</span><span style="color: #f8f8f2">, </span><span style="color: #e6db74">"log_time"</span><span style="color: #f8f8f2">: </span><span style="color: #e6db74">"2026040809"</span><span style="color: #f8f8f2">}</span>
+                    </div>
+                    <div><span style="color: #f8f8f2">)</span></div>
+                    <div style="margin-top: 10px; color: #75715e;"># 获取结果</div>
+                    <div><span style="color: #f8f8f2">result = response.json()</span></div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #e6fffb; border-radius: 8px; border-left: 4px solid #11998e;">
+                    <strong style="color: #006d75;">📖 更多示例：</strong>
+                    <span style="color: #006d75;">查看 </span>
+                    <a href="https://github.com/xiegm900209/sftlogapi2/blob/main/examples/zhiduoxing_simple.py" target="_blank" style="color: #11998e; text-decoration: none; font-weight: 500;">examples/zhiduoxing_simple.py</a>
+                    <span style="color: #006d75;"> 完整客户端代码</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 部署说明 -->
+        <div class="architecture">
+            <h3>🚀 部署说明</h3>
+            
+            <div style="background: linear-gradient(135deg, #11998e15 0%, #38ef7d15 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <h4 style="margin: 0 0 20px 0; color: #333;">环境要求</h4>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div style="background: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-weight: 600; color: #11998e; margin-bottom: 5px;">Docker</div>
+                        <div style="color: #666; font-size: 0.95em;">20.10+</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-weight: 600; color: #11998e; margin-bottom: 5px;">Docker Compose</div>
+                        <div style="color: #666; font-size: 0.95em;">1.29+</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-weight: 600; color: #11998e; margin-bottom: 5px;">Python</div>
+                        <div style="color: #666; font-size: 0.95em;">3.9+</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px;">
+                        <div style="font-weight: 600; color: #11998e; margin-bottom: 5px;">磁盘空间</div>
+                        <div style="color: #666; font-size: 0.95em;">≥200GB</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 快速部署 -->
+            <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <h4 style="margin: 0 0 20px 0; color: #333;">快速部署</h4>
+                
+                <div style="background: #2d2d2d; color: #f8f8f2; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9em; overflow-x: auto;">
+                    <div style="color: #75715e; margin-bottom: 10px;"># 1. 克隆项目</div>
+                    <div><span style="color: #f8f8f2">git clone git@github.com:xiegm900209/sftlogapi2.git</span></div>
+                    <div><span style="color: #f8f8f2">cd sftlogapi2</span></div>
+                    <div style="margin-top: 15px; color: #75715e;"># 2. 创建数据目录</div>
+                    <div><span style="color: #f8f8f2">mkdir -p /root/sft-data/index</span></div>
+                    <div style="margin-top: 15px; color: #75715e;"># 3. 构建镜像</div>
+                    <div><span style="color: #f8f8f2">docker build -t sftlogapi:v2 .</span></div>
+                    <div style="margin-top: 15px; color: #75715e;"># 4. 启动容器</div>
+                    <div><span style="color: #f8f8f2">docker-compose -f docker-compose.prod.yml up -d</span></div>
+                    <div style="margin-top: 15px; color: #75715e;"># 5. 访问系统</div>
+                    <div><span style="color: #f8f8f2">http://&lt;your-ip&gt;:8091/sftlogapi/</span></div>
+                </div>
+            </div>
+            
+            <!-- 配置说明 -->
+            <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <h4 style="margin: 0 0 20px 0; color: #333;">配置说明</h4>
+                
+                <div style="overflow-x: auto;">
+                    <table class="config-table">
+                        <thead>
+                            <tr>
+                                <th>配置项</th>
+                                <th>默认值</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>DB_PATH</code></td>
+                                <td><code>/data/index/logs_trace.db</code></td>
+                                <td>SQLite 数据库路径</td>
+                            </tr>
+                            <tr>
+                                <td><code>LOG_BASE_DIR</code></td>
+                                <td><code>/data/logs</code></td>
+                                <td>日志文件根目录</td>
+                            </tr>
+                            <tr>
+                                <td><code>API_KEY</code></td>
+                                <td><code>zhiduoxing-2026-secret-key</code></td>
+                                <td>API Key 认证密钥</td>
+                            </tr>
+                            <tr>
+                                <td><code>ENABLE_AUTH</code></td>
+                                <td><code>false</code></td>
+                                <td>是否启用 API 认证</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 定时任务 -->
+            <div style="background: white; padding: 25px; border-radius: 12px;">
+                <h4 style="margin: 0 0 20px 0; color: #333;">定时任务配置</h4>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                    <h5 style="margin: 0 0 10px 0; color: #333;">🕐 每小时压缩 + 索引生成</h5>
+                    <div style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; font-family: 'Courier New', monospace; font-size: 0.85em; overflow-x: auto;">
+                        <div>0 * * * * cd /root/sft/sftlogapi-v2 && \</div>
+                        <div style="padding-left: 20px;">python3 scripts/compress_and_index.py \</div>
+                        <div style="padding-left: 20px;">--hour $(date -d '1 hour ago' +\%Y\%m\%d\%H) \</div>
+                        <div style="padding-left: 20px;">--all-services --sync-sqlite</div>
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                    <h5 style="margin: 0 0 10px 0; color: #333;">🗑️ 每天清理 7 天前数据</h5>
+                    <div style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; font-family: 'Courier New', monospace; font-size: 0.85em; overflow-x: auto;">
+                        <div>0 3 * * * cd /root/sft/sftlogapi-v2 && \</div>
+                        <div style="padding-left: 20px;">python3 scripts/sync_index_to_sqlite.py \</div>
+                        <div style="padding-left: 20px;">--cleanup --retention-days 7</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 更多文档链接 -->
+            <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-radius: 12px; text-align: center;">
+                <h4 style="margin: 0 0 15px 0; color: #333;">📖 更多文档</h4>
+                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <a href="https://github.com/xiegm900209/sftlogapi2" target="_blank" style="background: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; color: #667eea; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        📂 GitHub 仓库
+                    </a>
+                    <a href="https://github.com/xiegm900209/sftlogapi2/blob/main/README.md" target="_blank" style="background: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; color: #11998e; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        📋 README.md
+                    </a>
+                    <a href="https://github.com/xiegm900209/sftlogapi2/blob/main/docs/AI_API_GUIDE.md" target="_blank" style="background: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; color: #eb3349; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        🤖 AI 接口指南
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
     
     <script>
         const API_BASE = '/sftlogapi/api';
