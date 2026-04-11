@@ -27,6 +27,8 @@ services:
       - LOG_BASE_DIR=/data/logs
       - CACHE_TTL=3600
       - CACHE_MAX_SIZE=10000
+      - API_KEY=zhiduoxing-2026-secret-key
+      - ENABLE_AUTH=true
     
     # 资源限制
     deploy:

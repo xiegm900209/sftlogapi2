@@ -11,6 +11,7 @@ import json
 import time
 import gzip
 import re
+import functools
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -40,7 +41,9 @@ CONFIG = {
     'CONFIG_DIR': '/app/config',
     'FRONTEND_DIR': os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist'),
     'CACHE_TTL': int(os.environ.get('CACHE_TTL', 3600)),
-    'CACHE_MAX_SIZE': int(os.environ.get('CACHE_MAX_SIZE', 10000))
+    'CACHE_MAX_SIZE': int(os.environ.get('CACHE_MAX_SIZE', 10000)),
+    'API_KEY': os.environ.get('API_KEY', 'zhiduoxing-2026-secret-key'),
+    'ENABLE_AUTH': os.environ.get('ENABLE_AUTH', 'false').lower() == 'true'
 }
 
 # 创建应用
@@ -49,6 +52,30 @@ app.config['DEBUG'] = CONFIG['DEBUG']
 
 # 启用 CORS
 CORS(app)
+
+# API Key 认证装饰器
+def require_api_key(f):
+    """API Key 认证装饰器"""
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not CONFIG['ENABLE_AUTH']:
+            return f(*args, **kwargs)
+        
+        api_key = request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        if not api_key:
+            api_key = request.args.get('api_key', '')
+        
+        if api_key != CONFIG['API_KEY']:
+            return jsonify({
+                'success': False,
+                'error_code': 401,
+                'message': '认证失败：无效的 API Key'
+            }), 401
+        
+        return f(*args, **kwargs)
+    
+    return decorated_function
 
 # 初始化缓存
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -124,13 +151,235 @@ def static_files(path):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """健康检查"""
+    """健康检查（无需认证）"""
     return jsonify({
         'success': True,
         'status': 'healthy',
         'timestamp': datetime.utcnow().isoformat() + 'Z',
-        'version': '2.0.0'
+        'version': '2.0.0',
+        'auth_enabled': CONFIG['ENABLE_AUTH']
     })
+
+
+# ============================================
+# 智多星 AI 专用接口（带认证）
+# ============================================
+
+@app.route('/api/zdx/log-query', methods=['GET'])
+@require_api_key
+def zdx_log_query():
+    """智多星专用 - 单日志查询（返回完整日志）"""
+    return log_query()
+
+
+@app.route('/api/zdx/transaction-trace', methods=['GET'])
+@require_api_key
+def zdx_transaction_trace():
+    """智多星专用 - 交易链路追踪（返回完整日志）"""
+    return transaction_trace()
+
+
+@app.route('/api/zdx/transaction-analyze', methods=['POST'])
+@require_api_key
+def zdx_transaction_analyze():
+    """智多星专用 - AI 智能分析交易（返回结构化分析 + 完整日志）"""
+    start_time = time.time()
+    
+    data = request.get_json() or {}
+    req_sn = data.get('req_sn')
+    log_time = data.get('log_time')
+    transaction_type = data.get('transaction_type')
+    analysis_type = data.get('analysis_type', 'summary')
+    
+    if not req_sn or not log_time:
+        return jsonify({
+            'success': False,
+            'error_code': 400,
+            'message': '缺少必填参数：req_sn, log_time'
+        }), 400
+    
+    # 获取交易类型配置
+    types_config = load_transaction_types()
+    type_info = types_config.get(transaction_type, {}) if transaction_type else {}
+    apps = type_info.get('apps', [])
+    
+    # 步骤 1: 获取 TraceID
+    trace_id = index_loader.get_reqsn_to_trace('sft-aipg', log_time, req_sn)
+    
+    if not trace_id:
+        current_index = current_hour_manager.get_or_build('sft-aipg', log_time)
+        if current_index:
+            trace_id = current_index.get_trace_id(req_sn)
+    
+    if not trace_id:
+        return jsonify({
+            'success': True,
+            'analysis': {
+                'summary': {
+                    'status': '未找到',
+                    'req_sn': req_sn,
+                    'message': '未找到相关日志'
+                },
+                'extracted_info': {},
+                'flow': [],
+                'issues': ['未找到交易日志'],
+                'suggestions': ['请检查 REQ_SN 和日志时间是否正确']
+            },
+            'query_time_ms': round((time.time() - start_time) * 1000, 2)
+        })
+    
+    # 步骤 2: 获取所有应用日志
+    app_logs = {}
+    total_logs = 0
+    flow = []
+    
+    for app in (apps or ['sft-aipg']):
+        entries = index_loader.get_trace_entries(app, log_time, trace_id)
+        entries = entries[:100]  # 每应用最多 100 条
+        
+        if entries:
+            logs = log_reader.read_logs_by_entries(entries, app)
+            app_logs[app] = logs
+            total_logs += len(logs)
+            
+            # 分析该应用的日志
+            first_ts = logs[0].get('timestamp', '') if logs else ''
+            last_ts = logs[-1].get('timestamp', '') if logs else ''
+            
+            flow.append({
+                'service': app,
+                'log_count': len(logs),
+                'first_timestamp': first_ts,
+                'last_timestamp': last_ts,
+                'has_error': any('ERROR' in log.get('level', '') for log in logs),
+                'logs': logs if analysis_type == 'full' else []  # 完整日志可选
+            })
+    
+    # 步骤 3: 提取关键信息
+    extracted_info = extract_transaction_info(app_logs)
+    
+    # 步骤 4: 检测问题
+    issues = detect_issues(flow, extracted_info)
+    suggestions = generate_suggestions(issues)
+    
+    # 步骤 5: 计算总耗时
+    all_timestamps = []
+    for app_flow in flow:
+        if app_flow['first_timestamp']:
+            all_timestamps.append(app_flow['first_timestamp'])
+        if app_flow['last_timestamp']:
+            all_timestamps.append(app_flow['last_timestamp'])
+    
+    total_time_ms = 0
+    if len(all_timestamps) >= 2:
+        try:
+            from datetime import datetime as dt
+            start = dt.strptime(min(all_timestamps), '%Y-%m-%d %H:%M:%S.%f')
+            end = dt.strptime(max(all_timestamps), '%Y-%m-%d %H:%M:%S.%f')
+            total_time_ms = int((end - start).total_seconds() * 1000)
+        except:
+            pass
+    
+    query_time = (time.time() - start_time) * 1000
+    
+    return jsonify({
+        'success': True,
+        'analysis': {
+            'summary': {
+                'status': '失败' if issues else '成功',
+                'req_sn': req_sn,
+                'trace_id': trace_id,
+                'transaction_type': transaction_type,
+                'transaction_name': type_info.get('name', '未知'),
+                'total_logs': total_logs,
+                'services_count': len(app_logs),
+                'total_time_ms': total_time_ms,
+                'query_time_ms': round(query_time, 2)
+            },
+            'extracted_info': extracted_info,
+            'flow': flow,
+            'issues': issues,
+            'suggestions': suggestions
+        },
+        'query_time_ms': round(query_time, 2)
+    })
+
+
+def extract_transaction_info(app_logs):
+    """从日志中提取关键信息"""
+    info = {}
+    
+    for app, logs in app_logs.items():
+        for log in logs:
+            content = log.get('content', '')
+            
+            # 提取金额
+            if not info.get('amount'):
+                import re
+                match = re.search(r'TRX_AMT[\">]([0-9.]+)', content)
+                if match:
+                    info['amount'] = match.group(1)
+            
+            # 提取商户号
+            if not info.get('merchant_no'):
+                import re
+                match = re.search(r'MER_ID[\">]([A-Za-z0-9]+)', content)
+                if match:
+                    info['merchant_no'] = match.group(1)
+            
+            # 提取银行
+            if not info.get('bank_name'):
+                if '银行' in content:
+                    import re
+                    match = re.search(r'([^，,]+银行 [^，,]*)', content)
+                    if match:
+                        info['bank_name'] = match.group(1)
+            
+            # 提取错误信息
+            if not info.get('error_message'):
+                import re
+                match = re.search(r'<ERR_MSG>([^<]+)</ERR_MSG>', content)
+                if match:
+                    info['error_message'] = match.group(1)
+    
+    return info
+
+
+def detect_issues(flow, extracted_info):
+    """检测问题"""
+    issues = []
+    
+    # 检查错误日志
+    for app_flow in flow:
+        if app_flow.get('has_error'):
+            issues.append(f"{app_flow['service']} 存在 ERROR 级别日志")
+    
+    # 检查错误信息
+    if extracted_info.get('error_message'):
+        issues.append(f"交易错误：{extracted_info['error_message']}")
+    
+    # 检查日志缺失
+    if len(flow) < 3:
+        issues.append("交易链路不完整，可能中途中断")
+    
+    return issues
+
+
+def generate_suggestions(issues):
+    """生成建议"""
+    suggestions = []
+    
+    if not issues:
+        suggestions.append("交易正常，无需处理")
+    else:
+        if any('ERROR' in issue for issue in issues):
+            suggestions.append("请查看 ERROR 日志定位具体问题")
+        if any('中断' in issue for issue in issues):
+            suggestions.append("建议检查网络和服务状态")
+        if any('错误' in issue for issue in issues):
+            suggestions.append("根据错误信息联系对应团队处理")
+    
+    return suggestions
 
 
 # ============================================

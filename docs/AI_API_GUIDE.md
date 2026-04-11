@@ -12,31 +12,46 @@
 
 智多星可通过以下接口实现：
 
-| 能力 | 接口 | 说明 |
-|------|------|------|
-| 🔍 交易查询 | `/api/log-query` | 根据 REQ_SN 查询日志 |
-| 🔗 链路追踪 | `/api/transaction-trace` | 追踪完整交易链路 |
-| 📊 交易分析 | `/api/transaction-analyze` | AI 智能分析交易 |
-| 📋 服务列表 | `/api/services` | 获取所有服务 |
-| ⚙️ 配置管理 | `/api/config/*` | 管理配置信息 |
+| 能力 | 接口 | 认证 | 说明 |
+|------|------|------|------|
+| 🔍 交易查询 | `/api/zdx/log-query` | ✅ | 根据 REQ_SN 查询日志（返回完整日志） |
+| 🔗 链路追踪 | `/api/zdx/transaction-trace` | ✅ | 追踪完整交易链路（返回完整日志） |
+| 📊 AI 分析 | `/api/zdx/transaction-analyze` | ✅ | AI 智能分析交易（结构化 + 完整日志） |
+| 📋 服务列表 | `/api/services` | ❌ | 获取所有服务 |
+| ⚙️ 配置管理 | `/api/config/*` | ❌ | 管理配置信息 |
 
 ---
 
 ## 🔐 认证方式
 
-### 方式 1: API Key（推荐）
+### 方式 1: API Key（推荐，默认启用）
 
+**请求头**:
 ```http
-Authorization: Bearer <your-api-key>
+Authorization: Bearer zhiduoxing-2026-secret-key
 ```
 
-### 方式 2: IP 白名单
+**URL 参数**:
+```
+?api_key=zhiduoxing-2026-secret-key
+```
 
-将智多星服务器 IP 加入白名单，无需认证。
+**自定义 API Key**:
+```bash
+# Docker 环境变量
+-e API_KEY=your-custom-api-key
+-e ENABLE_AUTH=true
+```
 
-### 方式 3: 内网直连
+### 方式 2: 关闭认证（内网测试）
 
-同一内网可直接访问，无需认证。
+```bash
+-e ENABLE_AUTH=false
+```
+
+### 方式 3: IP 白名单
+
+将智多星服务器 IP 加入 Nginx 白名单，无需认证。
 
 ---
 
