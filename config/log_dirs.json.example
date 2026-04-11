@@ -1,0 +1,22 @@
+{
+  "sft-aipg": "/root/sft/testlogs/sft-aipg",
+  "sft-trxqry": "/root/sft/testlogs/sft-trxqry",
+  "sft-trxpay": "/root/sft/testlogs/sft-trxpay",
+  "sft-trxrefund": "/root/sft/testlogs/sft-trxrefund",
+  "sft-acctasync": "/root/sft/testlogs/sft-acctasync",
+  "sft-acctrpc": "/root/sft/testlogs/sft-acctrpc",
+  "sft-agrsign": "/root/sft/testlogs/sft-agrsign",
+  "sft-batchapi": "/root/sft/testlogs/sft-batchapi",
+  "sft-biztask": "/root/sft/testlogs/sft-biztask",
+  "sft-chnlagent": "/root/sft/testlogs/sft-chnlagent",
+  "sft-merapi": "/root/sft/testlogs/sft-merapi",
+  "sft-monitor": "/root/sft/testlogs/sft-monitor",
+  "sft-product": "/root/sft/testlogs/sft-product",
+  "sft-riskctrl": "/root/sft/testlogs/sft-riskctrl",
+  "sft-trxbatch": "/root/sft/testlogs/sft-trxbatch",
+  "sft-trxcharge": "/root/sft/testlogs/sft-trxcharge",
+  "sft-trxnotify": "/root/sft/testlogs/sft-trxnotify",
+  "sft-trxtask": "/root/sft/testlogs/sft-trxtask",
+  "sft-ucpagent": "/root/sft/testlogs/sft-ucpagent",
+  "sft-web": "/root/sft/testlogs/sft-web"
+}

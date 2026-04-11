@@ -1,0 +1,50 @@
+{
+  "100001": {
+    "name": "代收",
+    "apps": ["sft-aipg", "sft-batchapi", "sft-trxbatch", "sft-bttrx-listener", "sft-chnlbatch"]
+  },
+  "100002": {
+    "name": "代付",
+    "apps": ["sft-aipg", "sft-batchapi", "sft-trxbatch", "sft-bttrx-listener", "sft-chnlbatch"]
+  },
+  "100007": {
+    "name": "实时转账",
+    "apps": ["sft-aipg", "sft-merapi", "sft-trxcharge", "sft-chnlagent", "sft-ucpagent", "sft-rtresult-http", "sft-rtresult-listener"]
+  },
+  "100011": {
+    "name": "实时收款",
+    "apps": ["sft-aipg", "sft-merapi", "sft-trxcharge", "sft-chnlagent", "sft-ucpagent", "sft-rtresult-http", "sft-rtresult-listener"]
+  },
+  "100014": {
+    "name": "实时付款",
+    "apps": ["sft-aipg", "sft-merapi", "sft-trxpay", "sft-chnlagent", "sft-ucpagent", "sft-rtresult-http", "sft-rtresult-listener"]
+  },
+  "100024": {
+    "name": "直清还款",
+    "apps": ["sft-aipg", "sft-merapi", "sft-trxcharge", "sft-chnlagent", "sft-ucpagent", "sft-rtresult-http", "sft-rtresult-listener"]
+  },
+  "100071": {
+    "name": "联合收款",
+    "apps": ["sft-aipg", "sft-merapi", "sft-trxpay", "sft-chnlagent", "sft-ucpagent", "sft-btresult-http", "sft-bttrx-listener"]
+  },
+  "200004": {
+    "name": "交易查询",
+    "apps": ["sft-aipg", "sft-trxqry"]
+  },
+  "310001": {
+    "name": "协议签约申请",
+    "apps": ["sft-aipg", "sft-agrsign"]
+  },
+  "310002": {
+    "name": "协议签约确认",
+    "apps": ["sft-aipg", "sft-agrsign"]
+  },
+  "310011": {
+    "name": "协议支付",
+    "apps": ["sft-aipg", "sft-merapi", "sft-trxcharge", "sft-chnlagent", "sft-ucpagent", "sft-rtresult-http", "sft-rtresult-listener"]
+  },
+  "310016": {
+    "name": "批量协议支付",
+    "apps": ["sft-aipg", "sft-batchapi", "sft-trxbatch", "sft-bttrx-listener", "sft-chnlbatch"]
+  }
+}

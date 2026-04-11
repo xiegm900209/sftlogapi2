@@ -1,0 +1,19 @@
+# Flask 核心
+Flask==2.3.3
+Flask-Caching==2.1.0
+Flask-CORS==4.0.0
+
+# 数据库
+# SQLite 内置，无需额外依赖
+
+# 序列化
+msgpack==1.0.7
+
+# 定时任务
+APScheduler==3.10.4
+
+# 工具
+python-dotenv==1.0.0
+
+# 性能分析 (可选)
+# memory-profiler==0.61.0
