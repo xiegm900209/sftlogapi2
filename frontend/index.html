@@ -527,6 +527,37 @@
             text-align: left;
         }
         
+        .config-table tbody tr.test-success {
+            background: rgba(17, 153, 142, 0.1);
+        }
+        
+        .config-table tbody tr.test-fail {
+            background: rgba(235, 51, 73, 0.1);
+        }
+        
+        .path-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        
+        .path-status.success {
+            background: #e6fffb;
+            color: #006d75;
+        }
+        
+        .path-status.fail {
+            background: #fff1f0;
+            color: #f5222d;
+        }
+        
+        .path-status.pending {
+            background: #f0f0f0;
+            color: #999;
+        }
+        
         .config-table tbody tr {
             border-bottom: 1px solid #f0f0f0;
             transition: background 0.2s;
@@ -1218,20 +1249,21 @@
                 <strong>💡 说明：</strong> 配置各服务的日志存储路径，修改后需重启服务生效。支持添加、编辑、删除、复制和导出功能。
             </div>
             
-            <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: center;">
                 <button class="btn-primary" onclick="showAddLogModal()">➕ 新增服务</button>
                 <button class="btn-primary" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);" onclick="exportLogConfig()">📥 导出配置</button>
                 <button class="btn-primary" style="background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);" onclick="importLogConfig()">📤 导入配置</button>
+                <button class="btn-primary" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="testAllPaths()">🧪 批量测试路径</button>
             </div>
             
             <div style="overflow-x: auto;">
                 <table class="config-table">
                     <thead>
                         <tr>
-                            <th style="width: 200px;">服务名称</th>
+                            <th style="width: 180px;">服务名称</th>
                             <th>日志路径</th>
-                            <th style="width: 150px;">记录数</th>
-                            <th style="width: 280px;">操作</th>
+                            <th style="width: 120px;">状态</th>
+                            <th style="width: 320px;">操作</th>
                         </tr>
                     </thead>
                     <tbody id="log-config-table">
@@ -1853,6 +1885,57 @@
             }
         }
         
+        // 测试日志路径
+        async function testLogPath(service, path) {
+            const statusEl = document.getElementById(`log-status-${service}`);
+            statusEl.textContent = '测试中...';
+            statusEl.className = 'path-status pending';
+            
+            try {
+                const response = await fetch(`${API_BASE}/config/validate-path`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.textContent = `✅ 存在 (${data.detail || ''})`;
+                    statusEl.className = 'path-status success';
+                    if (document.getElementById(`log-row-${service}`)) {
+                        document.getElementById(`log-row-${service}`).classList.add('test-success');
+                        document.getElementById(`log-row-${service}`).classList.remove('test-fail');
+                    }
+                } else {
+                    statusEl.textContent = `❌ 不存在`;
+                    statusEl.className = 'path-status fail';
+                    if (document.getElementById(`log-row-${service}`)) {
+                        document.getElementById(`log-row-${service}`).classList.add('test-fail');
+                        document.getElementById(`log-row-${service}`).classList.remove('test-success');
+                    }
+                }
+            } catch (error) {
+                statusEl.textContent = `❌ 错误`;
+                statusEl.className = 'path-status fail';
+                showNotification(`测试 ${service} 路径失败：${error.message}`, 'error');
+            }
+        }
+        
+        // 批量测试所有路径
+        async function testAllPaths() {
+            const services = Object.keys(logConfigData);
+            showNotification(`开始测试 ${services.length} 个服务路径...`, 'info');
+            
+            for (const service of services) {
+                const path = logConfigData[service];
+                await testLogPath(service, path);
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            showNotification('✅ 所有路径测试完成！', 'success');
+        }
+        
         // 保存日志路径配置
         async function saveLogConfig() {
             const service = document.getElementById('config_service').value;
@@ -2007,11 +2090,12 @@
                 const pathStr = typeof path === 'string' ? path : JSON.stringify(path);
                 
                 html += `
-                    <tr>
+                    <tr id="log-row-${service}">
                         <td><strong style="color: #667eea;">${service}</strong></td>
                         <td style="font-family: monospace; color: #555;">${pathStr}</td>
-                        <td><span class="tag">活跃</span></td>
+                        <td><span class="path-status pending" id="log-status-${service}">未测试</span></td>
                         <td>
+                            <button class="action-btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;" onclick="testLogPath('${service}', '${pathStr}')" title="测试路径">🧪 测试</button>
                             <button class="action-btn btn-edit" onclick="editLogConfig('${service}')" title="编辑">✏️ 编辑</button>
                             <button class="action-btn btn-copy" onclick="copyLogConfig('${service}')" title="复制">📋 复制</button>
                             <button class="action-btn btn-delete" onclick="deleteLogConfig('${service}')" title="删除">🗑️ 删除</button>

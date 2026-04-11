@@ -699,7 +699,7 @@ def config_log_dirs():
 
 @app.route('/api/config/validate-path', methods=['POST'])
 def validate_path():
-    """验证路径是否存在"""
+    """验证路径是否存在（支持宿主机和容器内路径）"""
     data = request.get_json()
     path = data.get('path')
     
@@ -709,14 +709,19 @@ def validate_path():
             'message': '缺少路径参数'
         }), 400
     
-    exists = os.path.exists(path)
-    is_dir = os.path.isdir(path) if exists else False
-    readable = os.access(path, os.R_OK) if exists else False
+    # 路径转换：宿主机路径 -> 容器内路径
+    container_path = path
+    if path.startswith('/root/sft/testlogs'):
+        container_path = path.replace('/root/sft/testlogs', '/data/logs')
+    
+    exists = os.path.exists(container_path)
+    is_dir = os.path.isdir(container_path) if exists else False
+    readable = os.access(container_path, os.R_OK) if exists else False
     
     file_count = 0
     if exists and is_dir:
         try:
-            file_count = len(os.listdir(path))
+            file_count = len(os.listdir(container_path))
         except:
             pass
     
@@ -725,7 +730,8 @@ def validate_path():
         'exists': exists,
         'is_dir': is_dir,
         'readable': readable,
-        'detail': f'目录包含 {file_count} 个文件' if exists and is_dir else ''
+        'detail': f'目录包含 {file_count} 个文件' if exists and is_dir else '',
+        'checked_path': container_path
     })
 
 
