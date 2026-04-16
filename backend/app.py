@@ -482,6 +482,9 @@ def log_query():
     current_hour = datetime.now().strftime('%Y%m%d%H')
     is_current_hour = (log_time == current_hour)
     
+    # 初始化 current_index
+    current_index = None
+    
     if is_current_hour:
         # 【当前小时】优先内存索引（实时，无延迟）
         current_index = current_hour_manager.get_or_build(svc, log_time)
