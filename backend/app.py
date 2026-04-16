@@ -572,9 +572,11 @@ def log_query():
     step3_start = time.time()
     
     # 优化：如果 entries 来自内存索引且包含 content，直接使用
+    print(f"[DEBUG] 步骤 3 检查：is_current_hour={is_current_hour}, current_index={current_index is not None}, entries={len(entries) if entries else 0}")
     if entries and is_current_hour and current_index:
         # 检查内存索引的 entries 是否包含 content
         mem_entries = current_index.get_entries(trace_id)
+        print(f"[DEBUG] mem_entries: {len(mem_entries) if mem_entries else 0}, has_content: {'content' in mem_entries[0] if mem_entries else False}")
         if mem_entries and 'content' in mem_entries[0]:
             # 直接使用内存中的 content，无需读取文件
             all_logs = []
