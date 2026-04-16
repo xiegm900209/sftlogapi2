@@ -574,12 +574,30 @@ def log_query():
     # 步骤 3: 流式读取日志内容
     step3_start = time.time()
     
-    # 优化：如果 entries 来自内存索引且包含 content，直接使用
+    # 优化：检查 entries 是否包含 content（内存索引或 SQLite）
     print(f"[DEBUG] 步骤 3 检查：is_current_hour={is_current_hour}, current_index={current_index is not None}, entries={len(entries) if entries else 0}")
-    if entries and is_current_hour and current_index:
+    
+    # 检查 entries[0] 是否有 content 字段
+    has_content = entries and len(entries) > 0 and isinstance(entries[0], dict) and 'content' in entries[0] and entries[0].get('content')
+    
+    if has_content:
+        # 直接使用 entries 中的 content，无需读取文件
+        all_logs = []
+        for entry in entries:
+            log_entry = {
+                'timestamp': entry.get('timestamp', ''),
+                'level': entry.get('level', ''),
+                'thread': entry.get('thread', ''),
+                'service': svc,
+                'content': entry.get('content', ''),
+                'trace_id': trace_id
+            }
+            all_logs.append(log_entry)
+        print(f"[DEBUG] 步骤 3 - 使用 entries content，{len(all_logs)} 条，耗时：<10ms")
+        step3_time = 0
+    elif entries and is_current_hour and current_index:
         # 检查内存索引的 entries 是否包含 content
         mem_entries = current_index.get_entries(trace_id)
-        print(f"[DEBUG] mem_entries: {len(mem_entries) if mem_entries else 0}, has_content: {'content' in mem_entries[0] if mem_entries else False}")
         if mem_entries and 'content' in mem_entries[0]:
             # 直接使用内存中的 content，无需读取文件
             all_logs = []
