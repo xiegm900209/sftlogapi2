@@ -580,16 +580,29 @@ def log_query():
     # 检查 entries[0] 是否有 content 字段
     has_content = entries and len(entries) > 0 and isinstance(entries[0], dict) and 'content' in entries[0] and entries[0].get('content')
     
+    # sft-aipg 服务启用快速筛选
+    filter_key = (svc == 'sft-aipg')
+    
     if has_content:
         # 直接使用 entries 中的 content，无需读取文件
         all_logs = []
         for entry in entries:
+            content = entry.get('content', '')
+            # 应用关键日志筛选
+            if filter_key:
+                is_key_log = ('请求处理完成' in content or 
+                             ('<?xml' in content and '<AIPG>' in content) or
+                             '<RET_CODE>' in content or
+                             '入口 IP' in content)
+                if not is_key_log:
+                    continue
+            
             log_entry = {
                 'timestamp': entry.get('timestamp', ''),
                 'level': entry.get('level', ''),
                 'thread': entry.get('thread', ''),
                 'service': svc,
-                'content': entry.get('content', ''),
+                'content': content,
                 'trace_id': trace_id
             }
             all_logs.append(log_entry)
