@@ -24,18 +24,20 @@ import threading
 
 
 class CurrentHourIndex:
-    """当前小时索引（内存）"""
+    """当前小时索引（内存 + 实时扫描）"""
     
-    def __init__(self, service: str, hour: str):
+    def __init__(self, service: str, hour: str, log_base_dir: str = None):
         self.service = service
         self.hour = hour
         self.req_sn_to_trace: Dict[str, str] = {}
         self.trace_index: Dict[str, List[Dict]] = {}
         self.built_at = time.time()
         self.access_count = 0
+        self.log_base_dir = log_base_dir or '/app/sharenfs/sft-logs'
     
     def add_entry(self, req_sn: Optional[str], trace_id: str, 
-                  file: str, block: int, timestamp: str, level: str):
+                  file: str, block: int, timestamp: str, level: str,
+                  content: str = None):
         """添加一条索引记录"""
         # REQ_SN → TraceID 映射（仅 sft-aipg）
         if req_sn and self.service == 'sft-aipg':
@@ -45,12 +47,18 @@ class CurrentHourIndex:
         if trace_id not in self.trace_index:
             self.trace_index[trace_id] = []
         
-        self.trace_index[trace_id].append({
+        entry = {
             'file': file,
             'block': block,
             'timestamp': timestamp,
             'level': level
-        })
+        }
+        
+        # 保存日志内容（当前小时索引专用优化）
+        if content:
+            entry['content'] = content
+        
+        self.trace_index[trace_id].append(entry)
     
     def get_trace_id(self, req_sn: str) -> Optional[str]:
         """通过 REQ_SN 查询 TraceID"""
@@ -65,6 +73,291 @@ class CurrentHourIndex:
     def is_expired(self, timeout_minutes: int = 120) -> bool:
         """检查是否过期（默认 2 小时）"""
         return (time.time() - self.built_at) > (timeout_minutes * 60)
+    
+    def get_trace_id(self, req_sn: str) -> Optional[str]:
+        """
+        通过 REQ_SN 查询 TraceID（支持实时扫描）
+        
+        策略：
+        1. 先查内存索引
+        2. 未命中则实时扫描日志文件末尾
+        
+        Args:
+            req_sn: 交易序列号
+        
+        Returns:
+            TraceID，未找到返回 None
+        """
+        self.access_count += 1
+        
+        # ═══════════════════════════════════════════════════
+        # 步骤 1: 查内存索引
+        # ═══════════════════════════════════════════════════
+        trace_id = self.req_sn_to_trace.get(req_sn)
+        if trace_id:
+            return trace_id
+        
+        # ═══════════════════════════════════════════════════
+        # 步骤 2: 实时扫描日志文件（联调环境专用）
+        # ═══════════════════════════════════════════════════
+        return self._scan_logs_for_reqsn(req_sn)
+    
+    def _scan_logs_for_reqsn(self, req_sn: str, scan_minutes: int = 5) -> Optional[str]:
+        """
+        实时扫描日志文件查找 REQ_SN
+        
+        Args:
+            req_sn: 交易序列号
+            scan_minutes: 扫描最近 N 分钟（默认 5 分钟）
+        
+        Returns:
+            TraceID，未找到返回 None
+        """
+        service_dir = os.path.join(self.log_base_dir, self.service)
+        
+        if not os.path.exists(service_dir):
+            return None
+        
+        # 查找当前小时的日志文件
+        for filename in os.listdir(service_dir):
+            if self.hour not in filename or not filename.endswith('.log'):
+                continue
+            
+            filepath = os.path.join(service_dir, filename)
+            
+            try:
+                file_size = os.path.getsize(filepath)
+                
+                # 只扫描最后 N MB（约 5 分钟的新日志）
+                # 1MB ≈ 2000 条日志 ≈ 1 分钟
+                scan_size = min(file_size, scan_minutes * 1024 * 1024)
+                scan_from = max(0, file_size - scan_size)
+                
+                # 如果没有新数据，跳过
+                if scan_from >= file_size:
+                    continue
+                
+                # 联调环境日志是 GBK 编码，使用文本模式直接读取
+                try:
+                    with open(filepath, 'r', encoding='gbk', errors='replace') as f:
+                        f.seek(scan_from)
+                        logs = self._scan_logs_for_reqsn(f, req_sn, filename)
+                        if logs:
+                            return logs
+                except Exception as e:
+                    print(f"[DEBUG] GBK 读取失败：{e}，尝试 UTF-8")
+                    # GBK 失败则用 UTF-8
+                    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                        f.seek(scan_from)
+                        logs = self._scan_logs_for_reqsn(f, req_sn, filename)
+                        if logs:
+                            return logs
+            
+            except Exception as e:
+                continue
+        
+        return None
+    
+    def _extract_log_info(self, content: str, req_sn: str) -> tuple:
+        """
+        从日志内容中提取 TraceID、timestamp、level
+        
+        Args:
+            content: 日志内容
+            req_sn: 交易序列号
+        
+        Returns:
+            (trace_id, timestamp, level)，未找到返回 (None, None, None)
+        """
+        # 找到 REQ_SN 所在位置
+        pos = content.find(req_sn)
+        if pos == -1:
+            return (None, None, None)
+        
+        # 向前查找日志行开头（[2026-04-15 ...]）
+        line_start = content.rfind('[20', 0, pos)
+        if line_start == -1:
+            return (None, None, None)
+        
+        # 提取日志行
+        line_end = content.find('\n', pos)
+        if line_end == -1:
+            line_end = len(content)
+        
+        log_line = content[line_start:line_end]
+        
+        # 解析日志头部（格式：[时间][线程][TraceID][级别]...）
+        # 示例：[2026-04-15 17:00:00.000][http-apr-8195-exec-1][TC3w9AIU][INFO]...
+        pattern = r'^\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]'
+        match = re.match(pattern, log_line)
+        
+        if match:
+            timestamp = match.group(1)
+            trace_id = match.group(3)
+            level = match.group(4)
+            return (trace_id, timestamp, level)
+        
+        return (None, None, None)
+    
+    def _scan_logs_from_content(self, content: str, req_sn: str, filename: str) -> Optional[str]:
+        """
+        从内容中扫描包含 REQ_SN 的日志块
+        
+        Args:
+            content: 日志内容（已解码）
+            req_sn: 交易序列号
+            filename: 文件名
+        
+        Returns:
+            TraceID，未找到返回 None
+        """
+        # 按行分割
+        lines = content.split('\n')
+        current_lines = []
+        found_req_sn = False
+        
+        for line in lines:
+            line = line + '\n'  # 保留换行符
+            
+            # 检查是否为新日志块开头
+            if re.match(r'^\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\]', line):
+                # 处理上一个日志块
+                if current_lines and found_req_sn:
+                    # 找到匹配的日志
+                    log_content = ''.join(current_lines)
+                    trace_id, timestamp, level = self._extract_log_info(log_content, req_sn)
+                    if trace_id:
+                        # 缓存 TraceID 映射
+                        self.req_sn_to_trace[req_sn] = trace_id
+                        
+                        # 添加到 trace_index
+                        if trace_id not in self.trace_index:
+                            self.trace_index[trace_id] = []
+                        
+                        self.trace_index[trace_id].append({
+                            'file': filename,
+                            'block': 0,
+                            'timestamp': timestamp,
+                            'level': level,
+                            'content': log_content
+                        })
+                        
+                        return trace_id
+                
+                # 开始新日志块
+                current_lines = [line]
+                found_req_sn = (req_sn in line)
+            else:
+                current_lines.append(line)
+                if req_sn in line:
+                    found_req_sn = True
+        
+        # 处理最后一个日志块
+        if current_lines and found_req_sn:
+            log_content = ''.join(current_lines)
+            trace_id, timestamp, level = self._extract_log_info(log_content, req_sn)
+            if trace_id:
+                self.req_sn_to_trace[req_sn] = trace_id
+                
+                if trace_id not in self.trace_index:
+                    self.trace_index[trace_id] = []
+                
+                self.trace_index[trace_id].append({
+                    'file': filename,
+                    'block': 0,
+                    'timestamp': timestamp,
+                    'level': level,
+                    'content': log_content
+                })
+                
+                return trace_id
+        
+        return None
+    
+    def _scan_logs_for_reqsn(self, f, req_sn: str, filename: str) -> Optional[str]:
+        """
+        逐行扫描日志文件，找到包含 REQ_SN 的日志块
+        
+        Args:
+            f: 文件对象
+            req_sn: 交易序列号
+            filename: 文件名
+        
+        Returns:
+            TraceID，未找到返回 None
+        """
+        current_lines = []
+        found_req_sn = False
+        
+        for line in f:
+            # 检查是否为新日志块开头
+            if re.match(r'^\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\]', line):
+                # 处理上一个日志块
+                if current_lines and found_req_sn:
+                    # 找到匹配的日志
+                    content = ''.join(current_lines)
+                    trace_id, timestamp, level = self._extract_log_info(content, req_sn)
+                    if trace_id:
+                        # 缓存 TraceID 映射
+                        self.req_sn_to_trace[req_sn] = trace_id
+                        
+                        # 添加到 trace_index
+                        if trace_id not in self.trace_index:
+                            self.trace_index[trace_id] = []
+                        
+                        self.trace_index[trace_id].append({
+                            'file': filename,
+                            'block': 0,
+                            'timestamp': timestamp,
+                            'level': level,
+                            'content': content
+                        })
+                        
+                        return trace_id
+                
+                # 开始新日志块
+                current_lines = [line]
+                found_req_sn = (req_sn in line)
+            else:
+                current_lines.append(line)
+                if req_sn in line:
+                    found_req_sn = True
+        
+        # 处理最后一个日志块
+        if current_lines and found_req_sn:
+            content = ''.join(current_lines)
+            trace_id, timestamp, level = self._extract_log_info(content, req_sn)
+            if trace_id:
+                self.req_sn_to_trace[req_sn] = trace_id
+                
+                if trace_id not in self.trace_index:
+                    self.trace_index[trace_id] = []
+                
+                self.trace_index[trace_id].append({
+                    'file': filename,
+                    'block': 0,
+                    'timestamp': timestamp,
+                    'level': level,
+                    'content': content
+                })
+                
+                return trace_id
+        
+        return None
+    
+    def _extract_trace_id(self, content: str, req_sn: str) -> Optional[str]:
+        """
+        从日志内容中提取 TraceID（兼容旧接口）
+        
+        Args:
+            content: 日志内容
+            req_sn: 交易序列号
+        
+        Returns:
+            TraceID，未找到返回 None
+        """
+        trace_id, _, _ = self._extract_log_info(content, req_sn)
+        return trace_id
 
 
 class CurrentHourIndexManager:
@@ -105,6 +398,9 @@ class CurrentHourIndexManager:
             index = self._build_index(service, hour)
             
             if index:
+                # 设置日志目录路径
+                index.log_base_dir = self.log_base_dir
+                
                 # 添加到缓存
                 self.cache[key] = index
                 
@@ -206,14 +502,15 @@ class CurrentHourIndexManager:
         content = ''.join(lines)
         req_sn = self._extract_req_sn(content)
         
-        # 添加到索引
+        # 添加到索引（保存完整内容，避免后续重复读取文件）
         index.add_entry(
             req_sn=req_sn,
             trace_id=trace_id,
             file=os.path.basename(file),
             block=block_num,
             timestamp=timestamp,
-            level=level
+            level=level,
+            content=content  # ← 关键优化：保存完整内容
         )
     
     def _extract_req_sn(self, content: str) -> Optional[str]:

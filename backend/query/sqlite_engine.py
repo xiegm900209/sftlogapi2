@@ -100,12 +100,172 @@ class SQLiteQueryEngine:
         conn.close()
         return results[:limit]
     
+    def get_trace_id_by_req_sn(self, req_sn: str, log_hour: str, service: str) -> Optional[str]:
+        """
+        通过 REQ_SN 查询 TraceID（快速查找，只返回 trace_id）
+        
+        Args:
+            req_sn: 交易序列号
+            log_hour: 小时 (YYYYMMDDHH)
+            service: 服务名
+        
+        Returns:
+            TraceID，未找到返回 None
+        """
+        if not os.path.exists(self.db_path):
+            return None
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # 先检查是否有 reqsn_mapping 表（新 schema）
+            cursor.execute('''
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='reqsn_mapping'
+            ''')
+            
+            if cursor.fetchone():
+                # 使用 reqsn_mapping 表（更快）
+                cursor.execute('''
+                    SELECT trace_id FROM reqsn_mapping
+                    WHERE hour = ? AND service = ? AND req_sn = ?
+                ''', (log_hour, service, req_sn))
+                
+                result = cursor.fetchone()
+                conn.close()
+                
+                if result:
+                    return result[0]
+            
+            # 降级到 logs_{hour} 表查询
+            table_name = self._get_table_name(log_hour)
+            cursor.execute(f'''
+                SELECT trace_id FROM {table_name}
+                WHERE req_sn = ? AND service = ?
+                LIMIT 1
+            ''', (req_sn, service))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                return result[0]
+            
+            return None
+            
+        except Exception as e:
+            print(f"[ERROR] SQLite 查询 REQ_SN 失败：{e}")
+            return None
+    
+    def query_by_trace_id(self, trace_id: str, 
+                          log_hour: str = None,
+                          service: str = None,
+                          limit: int = 1000) -> List[Dict]:
+        """
+        通过 TraceID 查询日志位置（返回 entries 格式，与 index_loader 兼容）
+        
+        Args:
+            trace_id: TraceID
+            log_hour: 小时 (YYYYMMDDHH)，不指定则查询所有
+            service: 服务名称过滤
+            limit: 最大返回数量
+        
+        Returns:
+            日志位置列表：[{file, block, timestamp, level, thread, length}, ...]
+        """
+        if not os.path.exists(self.db_path):
+            return []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # 先检查是否有 trace_index 表（新 schema）
+            cursor.execute('''
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='trace_index'
+            ''')
+            
+            if cursor.fetchone():
+                # 使用 trace_index 表查询（更快）
+                if log_hour and service:
+                    cursor.execute('''
+                        SELECT file, block, timestamp, level, thread, length
+                        FROM trace_index
+                        WHERE hour = ? AND service = ? AND trace_id = ?
+                        ORDER BY timestamp
+                        LIMIT ?
+                    ''', (log_hour, service, trace_id, limit))
+                elif log_hour:
+                    cursor.execute('''
+                        SELECT file, block, timestamp, level, thread, length
+                        FROM trace_index
+                        WHERE hour = ? AND trace_id = ?
+                        ORDER BY timestamp
+                        LIMIT ?
+                    ''', (log_hour, trace_id, limit))
+                else:
+                    cursor.execute('''
+                        SELECT file, block, timestamp, level, thread, length
+                        FROM trace_index
+                        WHERE trace_id = ?
+                        ORDER BY timestamp
+                        LIMIT ?
+                    ''', (trace_id, limit))
+                
+                rows = cursor.fetchall()
+                conn.close()
+                
+                if rows:
+                    return [dict(row) for row in rows]
+            
+            # 降级到 logs_{hour} 表查询
+            results = []
+            
+            if log_hour:
+                tables = [self._get_table_name(log_hour)]
+            else:
+                tables = self._get_all_log_tables()
+            
+            for table in tables:
+                if service:
+                    cursor.execute(f'''
+                        SELECT log_file as file, block_num as block, timestamp, level, thread, content_length as length
+                        FROM {table} 
+                        WHERE trace_id = ? AND service = ?
+                        ORDER BY timestamp
+                        LIMIT ?
+                    ''', (trace_id, service, limit - len(results)))
+                else:
+                    cursor.execute(f'''
+                        SELECT log_file as file, block_num as block, timestamp, level, thread, content_length as length
+                        FROM {table} 
+                        WHERE trace_id = ?
+                        ORDER BY timestamp
+                        LIMIT ?
+                    ''', (trace_id, limit - len(results)))
+                
+                rows = cursor.fetchall()
+                results.extend([dict(row) for row in rows])
+                
+                if len(results) >= limit:
+                    break
+            
+            conn.close()
+            return results[:limit]
+            
+        except Exception as e:
+            print(f"[ERROR] SQLite 查询 TraceID 失败：{e}")
+            return []
+    
     def query_by_req_sn(self, req_sn: str,
                         log_hour: str = None,
                         service: str = None,
                         limit: int = 1000) -> List[Dict]:
         """
-        通过 REQ_SN 查询
+        通过 REQ_SN 查询日志记录（返回完整记录）
         
         注意：当前实现中 req_sn 字段可能为空，需要优化
         """
