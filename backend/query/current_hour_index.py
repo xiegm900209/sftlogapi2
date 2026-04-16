@@ -141,17 +141,17 @@ class CurrentHourIndex:
                 try:
                     with open(filepath, 'r', encoding='gbk', errors='replace') as f:
                         f.seek(scan_from)
-                        logs = self._scan_logs_for_reqsn(f, req_sn, filename)
-                        if logs:
-                            return logs
+                        trace_id = self._scan_logs_file_for_reqsn(f, req_sn, filename)
+                        if trace_id:
+                            return trace_id
                 except Exception as e:
                     print(f"[DEBUG] GBK 读取失败：{e}，尝试 UTF-8")
                     # GBK 失败则用 UTF-8
                     with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
                         f.seek(scan_from)
-                        logs = self._scan_logs_for_reqsn(f, req_sn, filename)
-                        if logs:
-                            return logs
+                        trace_id = self._scan_logs_file_for_reqsn(f, req_sn, filename)
+                        if trace_id:
+                            return trace_id
             
             except Exception as e:
                 continue
@@ -274,7 +274,7 @@ class CurrentHourIndex:
         
         return None
     
-    def _scan_logs_for_reqsn(self, f, req_sn: str, filename: str) -> Optional[str]:
+    def _scan_logs_file_for_reqsn(self, f, req_sn: str, filename: str) -> Optional[str]:
         """
         逐行扫描日志文件，找到包含 REQ_SN 的日志块
         
