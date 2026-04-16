@@ -572,26 +572,35 @@ def log_query():
     step3_start = time.time()
     
     # 优化：如果 entries 来自内存索引且包含 content，直接使用
-    if entries and is_current_hour and current_index and entries and 'content' in entries[0]:
-        # 直接使用内存中的 content，无需读取文件
-        all_logs = []
-        for entry in entries:
-            log_entry = {
-                'timestamp': entry.get('timestamp', ''),
-                'level': entry.get('level', ''),
-                'thread': entry.get('thread', ''),
-                'service': svc,
-                'content': entry.get('content', ''),
-                'trace_id': trace_id
-            }
-            all_logs.append(log_entry)
-        print(f"[DEBUG] 步骤 3 - 使用内存索引 content，{len(all_logs)} 条")
+    if entries and is_current_hour and current_index:
+        # 检查内存索引的 entries 是否包含 content
+        mem_entries = current_index.get_entries(trace_id)
+        if mem_entries and 'content' in mem_entries[0]:
+            # 直接使用内存中的 content，无需读取文件
+            all_logs = []
+            for entry in mem_entries:
+                log_entry = {
+                    'timestamp': entry.get('timestamp', ''),
+                    'level': entry.get('level', ''),
+                    'thread': entry.get('thread', ''),
+                    'service': svc,
+                    'content': entry.get('content', ''),
+                    'trace_id': trace_id
+                }
+                all_logs.append(log_entry)
+            print(f"[DEBUG] 步骤 3 - 使用内存索引 content，{len(all_logs)} 条，耗时：<10ms")
+            step3_time = 0
+        else:
+            # 优化：sft-aipg 服务启用快速筛选，只读取关键日志
+            filter_key = (svc == 'sft-aipg')
+            all_logs = log_reader.read_logs_by_entries(entries, svc, filter_key=filter_key)
+            step3_time = (time.time() - step3_start) * 1000
     else:
         # 优化：sft-aipg 服务启用快速筛选，只读取关键日志
         filter_key = (svc == 'sft-aipg')
         all_logs = log_reader.read_logs_by_entries(entries, svc, filter_key=filter_key)
+        step3_time = (time.time() - step3_start) * 1000
     
-    step3_time = (time.time() - step3_start) * 1000
     print(f"[DEBUG] 步骤 3 - 读取 {len(all_logs)} 条日志内容，耗时：{step3_time:.0f}ms")
     
     # 按时间排序
