@@ -505,6 +505,14 @@ def log_query():
         # SQLite 未命中，降级到 MessagePack 索引文件
         if not trace_id:
             trace_id = index_loader.get_reqsn_to_trace(svc, log_time, req_sn)
+        
+        # 仍未命中，尝试构建内存索引（联调环境无预构建索引时使用）
+        if not trace_id:
+            current_index = current_hour_manager.get_or_build(svc, log_time)
+            if current_index:
+                trace_id = current_index.get_trace_id(req_sn)
+                if trace_id:
+                    print(f"[DEBUG] 历史小时内存索引命中：{req_sn} → {trace_id}")
     
     step1_time = (time.time() - step1_start) * 1000
     print(f"[DEBUG] 步骤 1 - REQ_SN → TraceID: {trace_id}, 耗时：{step1_time:.0f}ms")
@@ -697,6 +705,12 @@ def transaction_trace():
     for app in apps:
         # 从 SQLite 查询该应用的日志位置（通过 TraceID）
         entries = index_loader.get_trace_entries(app, log_time, trace_id)
+        
+        # SQLite 没有数据，尝试当前小时内存索引（联调环境实时日志）
+        if not entries:
+            current_index = current_hour_manager.get_or_build(app, log_time)
+            if current_index:
+                entries = current_index.get_entries(trace_id)
         
         if not entries:
             print(f"[DEBUG] {app}: 无日志")
