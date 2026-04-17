@@ -3,14 +3,17 @@
 """
 SQLite 查询引擎 v2
 支持高性能日志查询
+
+安全修复：防止 SQL 注入 - 表名白名单验证
 """
 
 import os
 import sys
 import sqlite3
 import gzip
+import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 from pathlib import Path
 
 # 添加路径
@@ -19,20 +22,97 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from models.log_parser import read_log_blocks
 
 
+class SQLInjectionError(Exception):
+    """SQL 注入检测异常"""
+    pass
+
+
 class SQLiteQueryEngine:
     """SQLite 查询引擎"""
+    
+    # 表名白名单正则 - 严格限制格式
+    TABLE_NAME_PATTERN = re.compile(r'^logs_\d{10}$')
+    
+    # 允许的列名白名单
+    ALLOWED_COLUMNS = {
+        'id', 'hour', 'service', 'trace_id', 'req_sn', 'file', 'block',
+        'line', 'timestamp', 'level', 'thread', 'length', 'content',
+        'log_file', 'block_num', 'content_length', 'stat_hour', 'synced_at'
+    }
     
     def __init__(self, db_path: str = '/root/sft/sftlogapi-v2/data/index/logs_index.db',
                  log_base_dir: str = '/root/sft/testlogs'):
         self.db_path = db_path
         self.log_base_dir = log_base_dir
+        self._allowed_tables: Optional[Set[str]] = None
+    
+    def _validate_table_name(self, table_name: str) -> str:
+        """
+        验证表名是否合法（防止 SQL 注入）
+        
+        Args:
+            table_name: 待验证的表名
+        
+        Returns:
+            验证通过的表名
+        
+        Raises:
+            SQLInjectionError: 表名不合法
+        """
+        if not table_name:
+            raise SQLInjectionError("表名不能为空")
+        
+        # 检查是否包含危险字符
+        dangerous_chars = [';', '--', '/*', '*/', 'UNION', 'SELECT', 'DROP', 'INSERT', 'DELETE', 'UPDATE', 'OR', 'AND']
+        table_upper = table_name.upper()
+        for char in dangerous_chars:
+            if char in table_upper:
+                raise SQLInjectionError(f"表名包含危险字符：{char}")
+        
+        # 严格格式校验：logs_YYYYMMDDHH
+        if not self.TABLE_NAME_PATTERN.match(table_name):
+            raise SQLInjectionError(
+                f"表名格式不合法：{table_name}，期望格式：logs_YYYYMMDDHH"
+            )
+        
+        # 动态获取数据库中的实际表名白名单
+        if self._allowed_tables is None:
+            self._allowed_tables = set(self._get_all_log_tables())
+        
+        # 表名必须在数据库中实际存在
+        if table_name not in self._allowed_tables:
+            raise SQLInjectionError(
+                f"表名不存在：{table_name}，可用表：{sorted(self._allowed_tables)[:5]}..."
+            )
+        
+        return table_name
     
     def _get_table_name(self, log_hour: str) -> str:
-        """获取小时表名"""
-        return f'logs_{log_hour}'
+        """
+        获取小时表名（带安全验证）
+        
+        Args:
+            log_hour: 小时字符串 (YYYYMMDDHH 格式)
+        
+        Returns:
+            验证通过的表名
+        
+        Raises:
+            SQLInjectionError: 输入不合法
+        """
+        # 严格校验小时格式：必须是 10 位数字
+        if not re.match(r'^\d{10}$', log_hour):
+            raise SQLInjectionError(
+                f"log_hour 格式错误：{log_hour}，期望格式：YYYYMMDDHH（10 位数字）"
+            )
+        
+        table_name = f'logs_{log_hour}'
+        
+        # 二次验证表名
+        return self._validate_table_name(table_name)
     
     def _get_all_log_tables(self) -> List[str]:
-        """获取所有日志表"""
+        """获取所有日志表（白名单）"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -45,6 +125,10 @@ class SQLiteQueryEngine:
         tables = [row[0] for row in cursor.fetchall()]
         conn.close()
         return tables
+    
+    def _refresh_allowed_tables(self):
+        """刷新允许的表名白名单（用于定时任务后）"""
+        self._allowed_tables = set(self._get_all_log_tables())
     
     def query_by_trace_id(self, trace_id: str, 
                           log_hour: str = None,
@@ -61,6 +145,9 @@ class SQLiteQueryEngine:
         
         Returns:
             日志记录列表
+        
+        Raises:
+            SQLInjectionError: 表名验证失败
         """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -69,13 +156,20 @@ class SQLiteQueryEngine:
         results = []
         
         if log_hour:
-            # 查询指定小时
+            # 查询指定小时 - 表名经过 _get_table_name 验证
             tables = [self._get_table_name(log_hour)]
         else:
-            # 查询所有小时表
+            # 查询所有小时表 - 从数据库动态获取白名单
             tables = self._get_all_log_tables()
         
         for table in tables:
+            # 二次验证表名（防御性编程）
+            try:
+                self._validate_table_name(table)
+            except SQLInjectionError as e:
+                print(f"[WARN] 跳过非法表名 {table}: {e}")
+                continue
+            
             if service:
                 cursor.execute(f'''
                     SELECT * FROM {table} 
@@ -138,7 +232,7 @@ class SQLiteQueryEngine:
                 if result:
                     return result[0]
             
-            # 降级到 logs_{hour} 表查询
+            # 降级到 logs_{hour} 表查询 - 使用安全验证的表名
             table_name = self._get_table_name(log_hour)
             cursor.execute(f'''
                 SELECT trace_id FROM {table_name}
@@ -221,15 +315,24 @@ class SQLiteQueryEngine:
                 if rows:
                     return [dict(row) for row in rows]
             
-            # 降级到 logs_{hour} 表查询
+            # 降级到 logs_{hour} 表查询 - 使用安全验证的表名
             results = []
             
             if log_hour:
+                # _get_table_name 已进行安全验证
                 tables = [self._get_table_name(log_hour)]
             else:
+                # 从数据库获取白名单表名
                 tables = self._get_all_log_tables()
             
             for table in tables:
+                # 二次验证表名
+                try:
+                    self._validate_table_name(table)
+                except SQLInjectionError as e:
+                    print(f"[WARN] 跳过非法表名 {table}: {e}")
+                    continue
+                    
                 if service:
                     cursor.execute(f'''
                         SELECT log_file as file, block_num as block, timestamp, level, thread, content_length as length
@@ -276,11 +379,20 @@ class SQLiteQueryEngine:
         results = []
         
         if log_hour:
+            # _get_table_name 已进行安全验证
             tables = [self._get_table_name(log_hour)]
         else:
+            # 从数据库获取白名单表名
             tables = self._get_all_log_tables()
         
         for table in tables:
+            # 二次验证表名
+            try:
+                self._validate_table_name(table)
+            except SQLInjectionError as e:
+                print(f"[WARN] 跳过非法表名 {table}: {e}")
+                continue
+                
             if service:
                 cursor.execute(f'''
                     SELECT * FROM {table} 
@@ -318,12 +430,24 @@ class SQLiteQueryEngine:
             service: 服务过滤
             trace_id: TraceID 过滤
             limit: 最大返回数量
+        
+        Returns:
+            日志记录列表
+        
+        Raises:
+            SQLInjectionError: 时间参数格式错误
         """
+        # 严格校验时间格式
+        if not re.match(r'^\d{10}$', start_hour):
+            raise SQLInjectionError(f"start_hour 格式错误：{start_hour}")
+        if not re.match(r'^\d{10}$', end_hour):
+            raise SQLInjectionError(f"end_hour 格式错误：{end_hour}")
+        
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # 获取范围内的所有表
+        # 获取范围内的所有表 - 使用参数化查询防止注入
         cursor.execute('''
             SELECT name FROM sqlite_master 
             WHERE type='table' AND name LIKE 'logs_%'
@@ -337,6 +461,13 @@ class SQLiteQueryEngine:
         results = []
         
         for table in tables:
+            # 验证表名
+            try:
+                self._validate_table_name(table)
+            except SQLInjectionError as e:
+                print(f"[WARN] 跳过非法表名 {table}: {e}")
+                continue
+            
             temp_conn = sqlite3.connect(self.db_path)
             temp_conn.row_factory = sqlite3.Row
             temp_cursor = temp_conn.cursor()

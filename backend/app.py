@@ -43,9 +43,23 @@ CONFIG = {
     'FRONTEND_DIR': os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist'),
     'CACHE_TTL': int(os.environ.get('CACHE_TTL', 3600)),
     'CACHE_MAX_SIZE': int(os.environ.get('CACHE_MAX_SIZE', 10000)),
-    'API_KEY': os.environ.get('API_KEY', 'zhiduoxing-2026-secret-key'),
+    'API_KEY': os.environ.get('API_KEY'),
     'ENABLE_AUTH': os.environ.get('ENABLE_AUTH', 'false').lower() == 'true'
 }
+
+# 验证必要的配置项
+def validate_config():
+    """验证必要的配置项是否已设置"""
+    errors = []
+    
+    if CONFIG['ENABLE_AUTH'] and not CONFIG['API_KEY']:
+        errors.append("API_KEY environment variable is required when ENABLE_AUTH is true")
+    
+    if errors:
+        raise RuntimeError("Configuration validation failed:\\n" + "\\n".join(errors))
+
+# 启动时验证配置
+validate_config()
 
 # 创建应用
 app = Flask(__name__, static_folder=CONFIG['FRONTEND_DIR'], static_url_path='/sftlogapi-v2/static')
@@ -427,6 +441,38 @@ def generate_suggestions(issues):
 # 单日志追踪查询 (LogQuery.vue)
 # ============================================
 
+def validate_log_time(log_time: str) -> bool:
+    """
+    验证日志时间格式（防止 SQL 注入）
+    
+    Args:
+        log_time: 日志时间字符串
+    
+    Returns:
+        是否合法
+    """
+    if not log_time:
+        return False
+    # 严格校验：必须是 10 位数字 (YYYYMMDDHH)
+    return bool(re.match(r'^\d{10}$', log_time))
+
+
+def validate_service_name(service: str) -> bool:
+    """
+    验证服务名称格式（防止路径遍历和 SQL 注入）
+    
+    Args:
+        service: 服务名称
+    
+    Returns:
+        是否合法
+    """
+    if not service:
+        return False
+    # 只允许字母、数字、连字符、下划线
+    return bool(re.match(r'^[a-zA-Z0-9_-]+$', service))
+
+
 @app.route('/api/log-query', methods=['GET'])
 def log_query():
     """
@@ -447,6 +493,20 @@ def log_query():
     merchant_no = request.args.get('merchant_no')
     log_time = request.args.get('log_time')
     service = request.args.get('service')
+    
+    # 安全验证：log_time 格式
+    if log_time and not validate_log_time(log_time):
+        return jsonify({
+            'success': False,
+            'message': '日志时间格式错误，应为 YYYYMMDDHH（10 位数字）'
+        }), 400
+    
+    # 安全验证：service 名称
+    if service and not validate_service_name(service):
+        return jsonify({
+            'success': False,
+            'message': '服务名称格式错误，只允许字母、数字、连字符、下划线'
+        }), 400
     
     page = int(request.args.get('page', 1))
     page_size = min(int(request.args.get('page_size', 100)), 500)
@@ -697,6 +757,13 @@ def transaction_trace():
     transaction_type = request.args.get('transaction_type')
     req_sn = request.args.get('req_sn')
     log_time = request.args.get('log_time')
+    
+    # 安全验证：log_time 格式
+    if log_time and not validate_log_time(log_time):
+        return jsonify({
+            'success': False,
+            'message': '日志时间格式错误，应为 YYYYMMDDHH（10 位数字）'
+        }), 400
     
     if not transaction_type:
         return jsonify({

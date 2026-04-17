@@ -3,8 +3,7 @@
 """
 日志内容流式读取器 v2
 
-根据索引中的位置信息，流式读取日志内容
-内存占用：<1MB
+安全修复：防止路径遍历攻击
 """
 
 import os
@@ -12,13 +11,109 @@ import re
 import gzip
 import json
 from typing import Optional, Dict, List
+from pathlib import Path
+
+
+class PathTraversalError(Exception):
+    """路径遍历攻击检测异常"""
+    pass
 
 
 class LogReader:
     """日志内容流式读取器"""
     
+    # 允许的文件扩展名白名单
+    ALLOWED_EXTENSIONS = {'.log', '.gz', '.log.gz'}
+    
+    # 文件名白名单正则 - 只允许安全字符
+    FILENAME_PATTERN = re.compile(r'^[a-zA-Z0-9_\-\.]+\.log(\.gz)?$')
+    
+    # 允许的日志文件前缀
+    ALLOWED_SERVICE_PREFIXES = {'sft-'}
+    
     def __init__(self, log_base_dir: str):
         self.log_base_dir = log_base_dir
+        # 规范化基础目录路径
+        self._base_dir = os.path.realpath(log_base_dir)
+    
+    def _validate_filename(self, filename: str) -> bool:
+        """
+        验证文件名是否合法
+        
+        Args:
+            filename: 文件名
+        
+        Returns:
+            是否合法
+        
+        Raises:
+            PathTraversalError: 文件名不合法
+        """
+        if not filename:
+            raise PathTraversalError("文件名不能为空")
+        
+        # 检查是否包含路径分隔符（防止目录遍历）
+        if '/' in filename or '\\' in filename:
+            raise PathTraversalError(f"文件名包含非法路径分隔符：{filename}")
+        
+        # 检查是否包含 ..（防止父目录遍历）
+        if '..' in filename:
+            raise PathTraversalError(f"文件名包含非法路径序列：{filename}")
+        
+        # 检查是否是绝对路径
+        if os.path.isabs(filename):
+            raise PathTraversalError(f"文件名不能是绝对路径：{filename}")
+        
+        # 检查文件扩展名白名单
+        # 特殊处理 .log.gz 文件
+        if filename.endswith('.log.gz'):
+            ext = '.log.gz'
+        else:
+            _, ext = os.path.splitext(filename)
+        
+        if ext not in self.ALLOWED_EXTENSIONS:
+            raise PathTraversalError(f"不允许的文件扩展名：{ext}，允许：{self.ALLOWED_EXTENSIONS}")
+        
+        # 检查文件名格式
+        if not self.FILENAME_PATTERN.match(filename):
+            raise PathTraversalError(f"文件名格式不合法：{filename}")
+        
+        return True
+    
+    def _safe_join_path(self, base_dir: str, filename: str) -> str:
+        """
+        安全地拼接路径（防止路径遍历）
+        
+        Args:
+            base_dir: 基础目录
+            filename: 文件名（不能包含路径分隔符）
+        
+        Returns:
+            完整路径
+        
+        Raises:
+            PathTraversalError: 路径拼接失败
+        """
+        # 规范化基础目录
+        base_dir = os.path.realpath(base_dir)
+        
+        # 文件名不能包含任何路径分隔符（防止子目录遍历）
+        if '/' in filename or '\\' in filename:
+            raise PathTraversalError(f"文件名不能包含路径分隔符：{filename}")
+        
+        # 拼接路径
+        full_path = os.path.join(base_dir, filename)
+        
+        # 规范化并解析真实路径
+        real_path = os.path.realpath(full_path)
+        
+        # 验证结果路径是否在基础目录内
+        if not real_path.startswith(base_dir + os.sep) and real_path != base_dir:
+            raise PathTraversalError(
+                f"路径遍历检测：{real_path} 不在基础目录 {base_dir} 内"
+            )
+        
+        return real_path
     
     def read_log_by_position(self, file: str, block: int, service: str = None, preview: bool = False) -> Optional[str]:
         """
@@ -32,9 +127,16 @@ class LogReader:
         
         Returns:
             日志内容，失败返回 None
+        
+        Raises:
+            PathTraversalError: 路径遍历攻击检测
         """
-        # 构建完整文件路径
-        file_path = self._resolve_file_path(file, service)
+        try:
+            # 构建完整文件路径（带安全验证）
+            file_path = self._resolve_file_path(file, service)
+        except PathTraversalError as e:
+            print(f"[SECURITY] 路径遍历攻击检测：{e}")
+            return None
         
         if not file_path or not os.path.exists(file_path):
             print(f"[DEBUG] 文件不存在：{file_path}")
@@ -270,7 +372,7 @@ class LogReader:
     
     def _resolve_file_path(self, file: str, service: str = None) -> Optional[str]:
         """
-        解析文件路径
+        解析文件路径（带安全验证）
         
         Args:
             file: 文件名
@@ -278,15 +380,28 @@ class LogReader:
         
         Returns:
             完整文件路径
+        
+        Raises:
+            PathTraversalError: 路径遍历攻击检测
         """
-        # 如果已经是完整路径，直接返回
-        if os.path.isabs(file) and os.path.exists(file):
-            return file
+        # 安全验证：文件名
+        try:
+            self._validate_filename(file)
+        except PathTraversalError:
+            raise  # 直接抛出，让上层处理
+        
+        # 如果是绝对路径，拒绝（应该使用相对路径）
+        if os.path.isabs(file):
+            raise PathTraversalError(f"不支持绝对路径：{file}")
         
         # 如果是相对路径，需要服务名
         if not service:
             print(f"[ERROR] 无法解析文件路径，缺少服务名：{file}")
             return None
+        
+        # 验证服务名格式
+        if not re.match(r'^[a-zA-Z0-9_-]+$', service):
+            raise PathTraversalError(f"服务名格式不合法：{service}")
         
         # 尝试从 log_dirs.json 加载服务目录配置
         service_dir = None
@@ -316,8 +431,8 @@ class LogReader:
             print(f"[WARN] 服务目录不存在：{service_dir}")
             return None
         
-        # 直接拼接
-        file_path = os.path.join(service_dir, file)
+        # 使用安全路径拼接
+        file_path = self._safe_join_path(service_dir, file)
         
         if os.path.exists(file_path):
             return file_path
