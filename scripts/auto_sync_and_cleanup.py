@@ -5,8 +5,8 @@
 
 功能：
 1. 同步 1 小时前的小时索引到 SQLite
-2. 清理 7 天前的 SQLite 数据
-3. 清理 7 天前的 MessagePack 索引文件
+2. 清理 2 天前的 SQLite 数据
+3. 清理 2 天前的 MessagePack 索引文件
 4. VACUUM 数据库释放空间
 
 使用方法：
@@ -17,7 +17,7 @@
     python3 auto_sync_and_cleanup.py --hour 2026041314 --service sft-aipg
     
     # 仅清理
-    python3 auto_sync_and_cleanup.py --cleanup --retention-days 7
+    python3 auto_sync_and_cleanup.py --cleanup --retention-days 2
 """
 
 import os
@@ -47,9 +47,9 @@ class AutoSyncAndCleanup:
             os.path.join(self.log_dir, service, f'{service}_{hour}.log.trace_index.msgpack')
         )
     
-    def cleanup_sqlite(self, retention_days: int = 7) -> int:
+    def cleanup_sqlite(self, retention_days: int = 2) -> int:
         """
-        清理 SQLite 中 7 天前的数据
+        清理 SQLite 中 2 天前的数据
         
         Returns:
             删除的记录数
@@ -134,8 +134,8 @@ class AutoSyncAndCleanup:
         
         return total_deleted
     
-    def cleanup_msgpack(self, retention_days: int = 7) -> int:
-        """清理 7 天前的 MessagePack 索引文件"""
+    def cleanup_msgpack(self, retention_days: int = 2) -> int:
+        """清理 2 天前的 MessagePack 索引文件"""
         cutoff_date = datetime.now() - timedelta(days=retention_days)
         cutoff_hour = cutoff_date.strftime('%Y%m%d%H')
         
@@ -219,8 +219,8 @@ def main():
     parser.add_argument('--service', '-s', help='服务名')
     parser.add_argument('--cleanup', '-c', action='store_true',
                        help='仅清理模式')
-    parser.add_argument('--retention-days', default=7, type=int,
-                       help='保留天数（默认 7 天）')
+    parser.add_argument('--retention-days', default=2, type=int,
+                       help='保留天数（默认 2 天）')
     
     args = parser.parse_args()
     

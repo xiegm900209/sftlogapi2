@@ -6,7 +6,7 @@
 2. **生成索引**: 
    - `REQ_SN 索引` (仅 sft-aipg): `{service}_{hour}.log.reqsn_index.msgpack`
    - `TraceID 索引` (所有应用): `{service}_{hour}.log.trace_index.msgpack`
-3. **清理索引**: 删除 7 天前的索引文件（保留压缩日志）
+3. **清理索引**: 删除 2 天前的索引文件（保留压缩日志）
 
 ## 🚀 使用方法
 
@@ -35,11 +35,11 @@ python3 scripts/compress_and_index.py \
 ### 3. 清理旧索引
 
 ```bash
-# 删除 7 天前的索引文件
+# 删除 2 天前的索引文件
 python3 scripts/compress_and_index.py \
   --log-dir /root/sft/testlogs \
   --cleanup \
-  --retention-days 7
+  --retention-days 2
 ```
 
 ### 4. 单个文件模式
@@ -65,8 +65,8 @@ crontab -e
 # 添加以下任务（每小时执行一次，处理 1 小时前的小时）
 0 * * * * cd /root/sft/sftlogapi-v2 && /usr/bin/python3 scripts/compress_and_index.py --log-dir /root/sft/testlogs --auto >> /var/log/sftlogapi_compress.log 2>&1
 
-# 每天 3:00 清理 7 天前的索引
-0 3 * * * cd /root/sft/sftlogapi-v2 && /usr/bin/python3 scripts/compress_and_index.py --log-dir /root/sft/testlogs --cleanup --retention-days 7 >> /var/log/sftlogapi_cleanup.log 2>&1
+# 每天 3:00 清理 2 天前的索引
+0 3 * * * cd /root/sft/sftlogapi-v2 && /usr/bin/python3 scripts/compress_and_index.py --log-dir /root/sft/testlogs --cleanup --retention-days 2 >> /var/log/sftlogapi_cleanup.log 2>&1
 ```
 
 ### Systemd Timer 配置（可选）
@@ -228,7 +228,7 @@ LOG_DIR=/data/logs  # 根据实际路径修改
 
 1. **当前小时日志不压缩**: 保留 `.log` 格式，查询时临时生成索引
 2. **索引与压缩日志同目录**: 便于管理和清理
-3. **7 天索引清理**: 只删索引，保留原始压缩日志
+3. **2 天索引清理**: 只删索引，保留原始压缩日志
 4. **MessagePack 格式**: 需要安装 `msgpack` 库
 5. **流式处理**: 避免内存溢出，支持大文件
 

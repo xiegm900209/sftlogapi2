@@ -8,7 +8,7 @@
 2. 生成两个索引文件：
    - {service}_{hour}.log.reqsn_index.msgpack (仅 sft-aipg)
    - {service}_{hour}.log.trace_index.msgpack (所有应用)
-3. 清理 7 天前的索引文件（保留压缩日志）
+3. 清理 2 天前的索引文件（保留压缩日志）
 
 使用方法：
     # 压缩并生成指定小时的索引
@@ -17,8 +17,8 @@
     # 压缩并生成所有服务指定小时的索引
     python3 compress_and_index.py --log-dir /root/sft/testlogs --hour 2026040809
     
-    # 清理 7 天前的索引
-    python3 compress_and_index.py --log-dir /root/sft/testlogs --cleanup --retention-days 7
+    # 清理 2 天前的索引
+    python3 compress_and_index.py --log-dir /root/sft/testlogs --cleanup --retention-days 2
     
     # 定时任务模式（压缩 1 小时前的小时）
     python3 compress_and_index.py --log-dir /root/sft/testlogs --auto
@@ -343,7 +343,7 @@ class LogCompressorIndexer:
             traceback.print_exc()
             return False
     
-    def cleanup_old_indexes(self, retention_days: int = 7):
+    def cleanup_old_indexes(self, retention_days: int = 2):
         """
         清理指定天数前的索引文件
         
@@ -471,8 +471,8 @@ def main():
                        help='自动模式：处理 1 小时前的小时（适用于定时任务）')
     parser.add_argument('--cleanup', '-c', action='store_true',
                        help='清理模式：删除指定天数前的索引文件')
-    parser.add_argument('--retention-days', default=7, type=int,
-                       help='索引保留天数（默认：7 天）')
+    parser.add_argument('--retention-days', default=2, type=int,
+                       help='索引保留天数（默认：2 天）')
     parser.add_argument('--all-services', action='store_true',
                        help='处理所有服务')
     parser.add_argument('--sync-sqlite', action='store_true',

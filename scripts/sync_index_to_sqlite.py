@@ -13,8 +13,8 @@
     # 同步所有服务的小时
     python3 sync_index_to_sqlite.py --hour 2026040809
     
-    # 清理 7 天前的数据
-    python3 sync_index_to_sqlite.py --cleanup --retention-days 7
+    # 清理 2 天前的数据
+    python3 sync_index_to_sqlite.py --cleanup --retention-days 2
 """
 
 import os
@@ -314,7 +314,7 @@ class IndexSyncer:
         
         return result[0] if result else None
     
-    def cleanup_old_data(self, retention_days: int = 7):
+    def cleanup_old_data(self, retention_days: int = 2):
         """清理指定天数前的数据"""
         cutoff_date = datetime.now() - timedelta(days=retention_days)
         cutoff_hour = cutoff_date.strftime('%Y%m%d%H')
@@ -364,8 +364,8 @@ def main():
     parser.add_argument('--hour', '-t', help='小时 (YYYYMMDDHH)')
     parser.add_argument('--cleanup', '-c', action='store_true',
                        help='清理模式')
-    parser.add_argument('--retention-days', default=7, type=int,
-                       help='数据保留天数')
+    parser.add_argument('--retention-days', default=2, type=int,
+                       help='数据保留天数（默认：2 天）')
     parser.add_argument('--all-services', action='store_true',
                        help='处理所有服务')
     
