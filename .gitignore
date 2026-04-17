@@ -73,3 +73,8 @@ docker-compose.override.yml
 .gitignore
 README.md
 DEPLOYMENT.md
+
+# 部署敏感信息
+deploy/*.md
+deploy/*.sh
+!deploy/README.md
