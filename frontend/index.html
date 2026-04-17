@@ -115,7 +115,7 @@
                     <div class="stat-label">接入服务</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="stat-query-time">-</div>
+                    <div class="stat-value" id="stat-query-time">≤3ms</div>
                     <div class="stat-label">平均查询耗时</div>
                 </div>
                 <div class="stat-card">
@@ -233,6 +233,7 @@
 
     <script>
         const API_BASE = '/sftlogapi-v2/api';
+        let transactionTypesLoaded = false; // 标记是否已加载交易类型
         
         // 路由处理
         function handleRoute() {
@@ -259,7 +260,7 @@
             // 加载页面数据
             if (page === 'home') loadHomeStats();
             if (page === 'config') loadConfig();
-            if (page === 'trace-query') loadTransactionTypes();
+            if (page === 'trace-query' && !transactionTypesLoaded) loadTransactionTypes();
         }
         
         // 首页统计
@@ -268,7 +269,6 @@
                 const health = await fetch(`${API_BASE}/health`).then(r => r.json());
                 const services = await fetch(`${API_BASE}/services`).then(r => r.json());
                 document.getElementById('stat-services').textContent = services.services?.length || 0;
-                document.getElementById('stat-query-time').textContent = '≤3ms';
                 document.getElementById('stat-status').textContent = health.status === 'healthy' ? '✅ 正常' : '⚠️ 异常';
             } catch (e) {
                 console.error('加载统计失败', e);
@@ -302,7 +302,7 @@
                         html += `<div class="log-entry">
                             <span class="log-timestamp">${log.timestamp}</span>
                             <span class="log-level">[${log.level}]</span>
-                            <span class="log-trace">[${log.trace_id}]</span>
+                            <span class="log-trace">[${log.trace_id || ''}]</span>
                             <div class="log-content">${escapeHtml(log.content)}</div>
                         </div>`;
                     });
@@ -316,18 +316,32 @@
             }
         }
         
-        // 链路追踪查询
+        // 加载交易类型（只加载一次）
         async function loadTransactionTypes() {
+            if (transactionTypesLoaded) return; // 已加载则跳过
+            
             try {
                 const data = await fetch(`${API_BASE}/transaction-types`).then(r => r.json());
                 const select = document.getElementById('tq-transaction-type');
+                
+                // 清空现有选项（保留第一个提示选项）
+                select.innerHTML = '<option value="">请选择交易类型</option>';
+                
                 if (data.transaction_types) {
                     Object.entries(data.transaction_types).forEach(([code, info]) => {
                         const opt = document.createElement('option');
                         opt.value = code;
-                        opt.textContent = `${code} - ${info.name || ''}`;
+                        // 处理 name 可能是对象或字符串的情况
+                        let name = '';
+                        if (typeof info.name === 'object' && info.name.zh) {
+                            name = info.name.zh;
+                        } else if (typeof info.name === 'string') {
+                            name = info.name;
+                        }
+                        opt.textContent = `${code} - ${name}`;
                         select.appendChild(opt);
                     });
+                    transactionTypesLoaded = true; // 标记已加载
                 }
             } catch (e) {
                 console.error('加载交易类型失败', e);
@@ -406,7 +420,14 @@
                     html += '<div style="background:white;padding:20px;border-radius:8px;">';
                     html += '<h3>交易类型配置</h3>';
                     Object.entries(transTypes.transaction_types).forEach(([code, info]) => {
-                        html += `<div style="padding:8px 0;border-bottom:1px solid #eee;"><strong>${code}</strong>: ${info.name || ''} (${info.apps?.join(', ') || ''})</div>`;
+                        let name = '';
+                        if (typeof info.name === 'object' && info.name.zh) {
+                            name = info.name.zh;
+                        } else if (typeof info.name === 'string') {
+                            name = info.name;
+                        }
+                        const apps = Array.isArray(info.apps) ? info.apps.join(', ') : '';
+                        html += `<div style="padding:8px 0;border-bottom:1px solid #eee;"><strong>${code}</strong>: ${name} ${apps ? `(${apps})` : ''}</div>`;
                     });
                     html += '</div>';
                 }
