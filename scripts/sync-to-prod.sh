@@ -17,16 +17,16 @@ JUMP_USER="<YOUR_JUMP_USER>"      # 例如：root
 
 # 中间机配置
 MIDDLE_HOST="<YOUR_MIDDLE_HOST>"  
-MIDDLE_USER="<YOUR_MIDDLE_USER>"  # 例如：sftuser
+MIDDLE_USER="<YOUR_MIDDLE_USER>"  
 
 # 后端主机配置
 BACKEND_HOST="<YOUR_BACKEND_HOST>" 
-BACKEND_USER="<YOUR_BACKEND_USER>" # 例如：sftuser
+BACKEND_USER="<YOUR_BACKEND_USER>" 
 BACKEND_DIR="<YOUR_BACKEND_DIR>"   # 例如：/app/sftlogapi-root/sftlogapi-v2
 
 # 前端主机配置
 FRONTEND_HOST="<YOUR_FRONTEND_HOST>" 
-FRONTEND_USER="<YOUR_FRONTEND_USER>" # 例如：sftuser
+FRONTEND_USER="<YOUR_FRONTEND_USER>" 
 FRONTEND_DIR="<YOUR_FRONTEND_DIR>"   # 例如：/app/tengine/frontend
 # ================================================
 

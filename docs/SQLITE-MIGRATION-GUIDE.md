@@ -223,10 +223,10 @@ tar -czf sftlogapi-v2-deploy.tar.gz sftlogapi-v2/
 
 ```bash
 # 上传到联调环境
-scp sftlogapi-v2-deploy.tar.gz sftuser@172.16.2.164:/root/sft/
+scp sftlogapi-v2-deploy.tar.gz <USER>@<HOST>:/root/sft/
 
 # SSH 登录
-ssh sftuser@172.16.2.164
+ssh <USER>@<HOST>
 
 # 停止服务
 docker-compose -f docker-compose.prod.yml down
