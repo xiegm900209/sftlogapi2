@@ -1,0 +1,14 @@
+# sftlogapi 索引生成定时任务
+# 格式：分钟 小时 日 月 星期 命令
+
+# 每 5 分钟：压缩最近 1 小时的日志并生成索引
+*/5 * * * * /usr/bin/python3 /app/sftlogapi-root/sftlogapi-crontab/compress_and_index.py --hour $(date -d '1 hour ago' +\%Y\%m\%d\%H) --log-dir /app/sharenfs/sft-logs >> /var/log/sftlogapi/compress.log 2>&1
+
+# 每 10 分钟：同步 MessagePack 索引到 SQLite
+*/10 * * * * /usr/bin/python3 /app/sftlogapi-root/sftlogapi-crontab/sync_index_to_sqlite.py --log-dir /app/sharenfs/sft-logs --db-path /app/logsqldb/logs_trace.db >> /var/log/sftlogapi/sync.log 2>&1
+
+# 每天 3:00：清理 7 天前的旧索引
+0 3 * * * /usr/bin/python3 /app/sftlogapi-root/sftlogapi-crontab/sync_index_to_sqlite.py --cleanup --retention-days 7 --db-path /app/logsqldb/logs_trace.db >> /var/log/sftlogapi/cleanup.log 2>&1
+
+# 每天 4:00：重建所有索引（容错）
+0 4 * * * /usr/bin/python3 /app/sftlogapi-root/sftlogapi-crontab/rebuild_index.py --log-dir /app/sharenfs/sft-logs --db-path /app/logsqldb/logs_trace.db >> /var/log/sftlogapi/rebuild.log 2>&1

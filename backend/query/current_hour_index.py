@@ -133,22 +133,19 @@ class CurrentHourIndex:
                 scan_size = min(file_size, scan_minutes * 1024 * 1024)
                 scan_from = max(0, file_size - scan_size)
                 
-                # 如果没有新数据，跳过
-                if scan_from >= file_size:
-                    continue
-                
                 # 联调环境日志是 GBK 编码，使用文本模式直接读取
+                # 注意：不跳过旧数据，完整扫描文件（因为 REQ_SN 可能在文件任何位置）
                 try:
+                    print(f"[DEBUG] 扫描文件：{filepath} (大小：{file_size} 字节)")
                     with open(filepath, 'r', encoding='gbk', errors='replace') as f:
-                        f.seek(scan_from)
                         trace_id = self._scan_logs_file_for_reqsn(f, req_sn, filename)
                         if trace_id:
+                            print(f"[DEBUG] 找到 TraceID: {trace_id}")
                             return trace_id
                 except Exception as e:
                     print(f"[DEBUG] GBK 读取失败：{e}，尝试 UTF-8")
                     # GBK 失败则用 UTF-8
                     with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-                        f.seek(scan_from)
                         trace_id = self._scan_logs_file_for_reqsn(f, req_sn, filename)
                         if trace_id:
                             return trace_id
@@ -441,7 +438,8 @@ class CurrentHourIndexManager:
         # 流式处理每个日志文件
         for log_file in log_files:
             try:
-                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                # 联调环境日志是 GBK 编码
+                with open(log_file, 'r', encoding='gbk', errors='replace') as f:
                     block_num = 0
                     current_lines = []
                     
