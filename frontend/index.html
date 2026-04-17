@@ -141,9 +141,7 @@
                 <div class="form-group">
                     <label class="form-label">服务</label>
                     <select id="lq-service" class="form-select">
-                        <option value="sft-aipg">sft-aipg</option>
-                        <option value="sft-trxpay">sft-trxpay</option>
-                        <option value="sft-trxqry">sft-trxqry</option>
+                        <option value="">加载中...</option>
                     </select>
                 </div>
                 <button class="btn btn-primary" onclick="queryLog()">查询日志</button>
@@ -233,7 +231,8 @@
 
     <script>
         const API_BASE = '/sftlogapi-v2/api';
-        let transactionTypesLoaded = false; // 标记是否已加载交易类型
+        let transactionTypesLoaded = false;
+        let servicesLoaded = false;
         
         // 路由处理
         function handleRoute() {
@@ -260,6 +259,7 @@
             // 加载页面数据
             if (page === 'home') loadHomeStats();
             if (page === 'config') loadConfig();
+            if (page === 'log-query' && !servicesLoaded) loadServices();
             if (page === 'trace-query' && !transactionTypesLoaded) loadTransactionTypes();
         }
         
@@ -272,6 +272,34 @@
                 document.getElementById('stat-status').textContent = health.status === 'healthy' ? '✅ 正常' : '⚠️ 异常';
             } catch (e) {
                 console.error('加载统计失败', e);
+            }
+        }
+        
+        // 加载服务列表
+        async function loadServices() {
+            if (servicesLoaded) return;
+            
+            try {
+                const data = await fetch(`${API_BASE}/services`).then(r => r.json());
+                const select = document.getElementById('lq-service');
+                select.innerHTML = '<option value="">请选择服务</option>';
+                
+                if (data.services && Array.isArray(data.services)) {
+                    data.services.forEach(service => {
+                        const opt = document.createElement('option');
+                        opt.value = service;
+                        opt.textContent = service;
+                        select.appendChild(opt);
+                    });
+                    // 默认选中 sft-aipg
+                    if (data.services.includes('sft-aipg')) {
+                        select.value = 'sft-aipg';
+                    }
+                    servicesLoaded = true;
+                }
+            } catch (e) {
+                console.error('加载服务列表失败', e);
+                document.getElementById('lq-service').innerHTML = '<option value="sft-aipg">sft-aipg</option>';
             }
         }
         
@@ -316,22 +344,19 @@
             }
         }
         
-        // 加载交易类型（只加载一次）
+        // 加载交易类型
         async function loadTransactionTypes() {
-            if (transactionTypesLoaded) return; // 已加载则跳过
+            if (transactionTypesLoaded) return;
             
             try {
                 const data = await fetch(`${API_BASE}/transaction-types`).then(r => r.json());
                 const select = document.getElementById('tq-transaction-type');
-                
-                // 清空现有选项（保留第一个提示选项）
                 select.innerHTML = '<option value="">请选择交易类型</option>';
                 
                 if (data.transaction_types) {
                     Object.entries(data.transaction_types).forEach(([code, info]) => {
                         const opt = document.createElement('option');
                         opt.value = code;
-                        // 处理 name 可能是对象或字符串的情况
                         let name = '';
                         if (typeof info.name === 'object' && info.name.zh) {
                             name = info.name.zh;
@@ -341,7 +366,7 @@
                         opt.textContent = `${code} - ${name}`;
                         select.appendChild(opt);
                     });
-                    transactionTypesLoaded = true; // 标记已加载
+                    transactionTypesLoaded = true;
                 }
             } catch (e) {
                 console.error('加载交易类型失败', e);
