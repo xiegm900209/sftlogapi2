@@ -11,21 +11,21 @@ echo ""
 
 # ========== 配置区域（请修改为实际值）==========
 # 跳板机配置
-JUMP_HOST="<YOUR_JUMP_HOST>"      # 例如：192.168.13.104
+JUMP_HOST="<YOUR_JUMP_HOST>"      
 JUMP_USER="<YOUR_JUMP_USER>"      # 例如：root
 # JUMP_PASS 建议使用 SSH 密钥认证，不要硬编码密码
 
 # 中间机配置
-MIDDLE_HOST="<YOUR_MIDDLE_HOST>"  # 例如：192.168.109.75
+MIDDLE_HOST="<YOUR_MIDDLE_HOST>"  
 MIDDLE_USER="<YOUR_MIDDLE_USER>"  # 例如：sftuser
 
 # 后端主机配置
-BACKEND_HOST="<YOUR_BACKEND_HOST>" # 例如：192.168.109.77
+BACKEND_HOST="<YOUR_BACKEND_HOST>" 
 BACKEND_USER="<YOUR_BACKEND_USER>" # 例如：sftuser
 BACKEND_DIR="<YOUR_BACKEND_DIR>"   # 例如：/app/sftlogapi-root/sftlogapi-v2
 
 # 前端主机配置
-FRONTEND_HOST="<YOUR_FRONTEND_HOST>" # 例如：192.168.109.54
+FRONTEND_HOST="<YOUR_FRONTEND_HOST>" 
 FRONTEND_USER="<YOUR_FRONTEND_USER>" # 例如：sftuser
 FRONTEND_DIR="<YOUR_FRONTEND_DIR>"   # 例如：/app/tengine/frontend
 # ================================================
